@@ -5,7 +5,7 @@
 // +----------------------------------------------------------------------+
 // | This source file is subject to version 2.0 of the GPL license.       |
 // +----------------------------------------------------------------------+
-//  $Id: maxmind_orders.php 1.1 2007-01-05 23:12:39Z ses707 $
+//  $Id: maxmind_orders.php 1.2 2007-01-05 23:12:39Z ses707 $
 //
 
   require('includes/application_top.php');
@@ -239,13 +239,49 @@
     }
   }
   //MaxMind Start
+  $check_maxmind_query = "select * from " . TABLE_ORDERS_MAXMIND . " where order_id = '" . (int)$oID . "'";
+  $maxmind_query = $db->Execute($check_maxmind_query);
+  $max_score = round($maxmind_query->fields['score']);
+  switch ($max_score) {
+  case 0: $max_comment = MAXMIND_0; break;
+  case 1: $max_comment = MAXMIND_1; break;
+  case 2: $max_comment = MAXMIND_2; break;
+  case 3: $max_comment = MAXMIND_3; break;
+  case 4: $max_comment = MAXMIND_4; break;
+  case 5: $max_comment = MAXMIND_5; break;
+  case 6: $max_comment = MAXMIND_6; break;
+  case 7: $max_comment = MAXMIND_7; break;
+  case 8: $max_comment = MAXMIND_8; break;
+  case 9: $max_comment = MAXMIND_9; break;
+  case 10: $max_comment = MAXMIND_10; break;
+  }
+  $max_error = $maxmind_query->fields['err'];
+  switch ($max_error) {
+  //Warning Errors
+  case IP_NOT_FOUND: $max_easy_error = MAXMIND_IP_NOT_FOUND; break;
+  case COUNTRY_NOT_FOUND: $max_easy_error = MAXMIND_COUNTRY_NOT_FOUND; break;
+  case CITY_NOT_FOUND: $max_easy_error = MAXMIND_CITY_NOT_FOUND; break;
+  case CITY_REQUIRED: $max_easy_error = MAXMIND_CITY_REQUIRED; break;
+  case POSTAL_CODE_REQUIRED: $max_easy_error = MAXMIND_POSTAL_CODE_REQUIRED; break;
+  case POSTAL_CODE_NOT_FOUND: $max_easy_error = MAXMIND_POSTAL_CODE_NOT_FOUND; break;
+  //Fatal Errors
+  case INVALID_LICENSE_KEY: $max_easy_error = MAXMIND_INVALID_LICENSE_KEY; break;
+  case MAX_REQUESTS_PER_LICENSE: $max_easy_error = MAXMIND_MAX_REQUESTS_PER_LICENSE; break;
+  case IP_REQUIRED: $max_easy_error = MAXMIND_IP_REQUIRED; break;
+  case LICENSE_REQUIRED: $max_easy_error = MAXMIND_LICENSE_REQUIRED; break;
+  case COUNTRY_REQUIRED: $max_easy_error = MAXMIND_COUNTRY_REQUIRED; break;
+  case MAX_REQUESTS_REACHED: $max_easy_error = MAXMIND_MAX_REQUESTS_REACHED; break;
+  }
   require(DIR_FS_CATALOG_MODULES . 'maxmind/geoip.inc');
   $gi = geoip_open(DIR_FS_CATALOG_MODULES . 'maxmind/GeoIP.dat',GEOIP_STANDARD);
 
   if ($_GET['maxmind'] == 'delete')
   { 
     $db->Execute("DELETE FROM " . TABLE_ORDERS_MAXMIND . " where order_id = '" . $oID . "'");
-	echo "Deleted MaxMind Information";
+	$messageStack->add(MAXMIND_DELETED, 'success');
+  }
+  if ((zen_not_null($maxmind_query->fields['score'])) && (strlen($maxmind_query->fields['risk_score']) < 1)) {
+  	$messageStack->add(MAXMIND_MINIFRAUD_VERSION_OUT_OF_DATE, 'warning');
   }
   //MaxMind End
 
@@ -287,6 +323,7 @@ function couponpopupWindow(url) {
 ?>
 </div>
 <!-- header_eof //-->
+
 <!-- body //-->
 <table border="0" width="100%" cellspacing="2" cellpadding="2">
   <tr>
@@ -337,7 +374,7 @@ function couponpopupWindow(url) {
   //MaxMind Start
   //Split IP Address - Why these are in the same field bewilders me.
   $full_order_ip = $order->info['ip_address'];
-  $partial_order_ip = explode(' - ', $full_order_ip);
+  $partial_order_ip = explode(' - ', trim($full_order_ip, '-'));
   //Grab Bin Information
   $bin_info_query = "select cc_bin_name, cc_bin_phone from " . TABLE_ORDERS . " where orders_id = '" . $oID . "'";
   $bin_info = $db->Execute($bin_info_query);
@@ -351,7 +388,7 @@ function couponpopupWindow(url) {
           <tr>
             <td class="pageHeading"><?php echo HEADING_TITLE; ?></td>
             <td class="pageHeading" align="right"><?php echo zen_draw_separator('pixel_trans.gif', 1, HEADING_IMAGE_HEIGHT); ?></td>
-            <td class="pageHeading" align="right"><?php echo '<a href="javascript:history.back()">' . zen_image_button('button_back.gif', IMAGE_BACK) . '</a>'; ?></td>
+            <td class="pageHeading" align="right"><?php echo '<a href="javascript:history.back()">' . zen_image_button('button_back.gif', IMAGE_BACK) . '</a> <a href="' . zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('action'))) . '">' . zen_image_button('button_orders.gif', IMAGE_ORDERS) . '</a>'; ?></td>
           </tr>
         </table></td>
       </tr>
@@ -360,10 +397,6 @@ function couponpopupWindow(url) {
           <tr>
             <td colspan="3"><?php echo zen_draw_separator(); ?></td>
           </tr>
-		  <tr>
-		   <td>
-</td>
-</tr>
           <tr>
             <td valign="top"><table width="100%" border="0" cellspacing="0" cellpadding="2">
               <tr>
@@ -397,7 +430,7 @@ function couponpopupWindow(url) {
 			    		<td class="main">' . zen_image(DIR_WS_FLAGS . strtolower(geoip_country_code_by_addr($gi, $partial_order_ip[0])) . '.gif', geoip_country_name_by_addr($gi, $partial_order_ip[0])) . '&nbsp;' . geoip_country_name_by_addr($gi, $partial_order_ip[0]) . '</td>
 			  		</tr>'; 
 			  	} 
-			  	if ($partial_order_ip[0] != $partial_order_ip[1]) {
+			  	if ($partial_order_ip[0] != $partial_order_ip[1] && zen_not_null($partial_order_ip[1])) {
 					echo
 					'<tr>
                 		<td class="main"><strong>' . TEXT_INFO_END_IP_ADDRESS . '</strong></td>
@@ -496,51 +529,19 @@ function couponpopupWindow(url) {
 <?php
 }
 ?>
-        <?php //MaxMind Start ?>
-        <?php
-$check_maxmind_query = "select * from " . TABLE_ORDERS_MAXMIND . " where order_id = '" . (int)$oID . "'";
-$maxmind_query = $db->Execute($check_maxmind_query);
-$max_score = round($maxmind_query->fields['score']);
-switch ($max_score) {
-case 0: $max_comment = MAXMIND_0; break;
-case 1: $max_comment = MAXMIND_1; break;
-case 2: $max_comment = MAXMIND_2; break;
-case 3: $max_comment = MAXMIND_3; break;
-case 4: $max_comment = MAXMIND_4; break;
-case 5: $max_comment = MAXMIND_5; break;
-case 6: $max_comment = MAXMIND_6; break;
-case 7: $max_comment = MAXMIND_7; break;
-case 8: $max_comment = MAXMIND_8; break;
-case 9: $max_comment = MAXMIND_9; break;
-case 10: $max_comment = MAXMIND_10; break;
-}
-$max_error = $maxmind_query->fields['err'];
-switch ($max_error) {
-//Warning Errors
-case IP_NOT_FOUND: $max_easy_error = MAXMIND_IP_NOT_FOUND; break;
-case COUNTRY_NOT_FOUND: $max_easy_error = MAXMIND_COUNTRY_NOT_FOUND; break;
-case CITY_NOT_FOUND: $max_easy_error = MAXMIND_CITY_NOT_FOUND; break;
-case CITY_REQUIRED: $max_easy_error = MAXMIND_CITY_REQUIRED; break;
-case POSTAL_CODE_REQUIRED: $max_easy_error = MAXMIND_POSTAL_CODE_REQUIRED; break;
-case POSTAL_CODE_NOT_FOUND: $max_easy_error = MAXMIND_POSTAL_CODE_NOT_FOUND; break;
-//Fatal Errors
-case INVALID_LICENSE_KEY: $max_easy_error = MAXMIND_INVALID_LICENSE_KEY; break;
-case MAX_REQUESTS_PER_LICENSE: $max_easy_error = MAXMIND_MAX_REQUESTS_PER_LICENSE; break;
-case IP_REQUIRED: $max_easy_error = MAXMIND_IP_REQUIRED; break;
-case LICENSE_REQUIRED: $max_easy_error = MAXMIND_LICENSE_REQUIRED; break;
-case COUNTRY_REQUIRED: $max_easy_error = MAXMIND_COUNTRY_REQUIRED; break;
-case MAX_REQUESTS_REACHED: $max_easy_error = MAXMIND_MAX_REQUESTS_REACHED; break;
-}
-?>
+<?php //MaxMind Start ?>
       </table>
 <table width="100%" cellpadding="2" cellspacing="0" border="0">
-  <tr  class="dataTableHeadingRow">
-    <td colspan="7"><br /><?php echo '<b>' . MAXMIND_SCORE; ?>&nbsp;<?php if (zen_not_null($maxmind_query->fields['score'])) { echo $maxmind_query->fields['score'] . $max_comment  . '</b>'; } ?></td>
+  <tr class="dataTableHeadingRow">
+    <td colspan="7"><br /><?php echo '<b>' . MAXMIND_RISK_SCORE; ?>&nbsp;<?php if (zen_not_null($maxmind_query->fields['risk_score'])) { echo $maxmind_query->fields['risk_score']; } ?>&nbsp;&nbsp;|&nbsp;&nbsp;<?php echo MAXMIND_SCORE; ?>&nbsp;<?php if (zen_not_null($maxmind_query->fields['score'])) { echo $maxmind_query->fields['score']; } ?>&nbsp;&nbsp;|&nbsp;&nbsp;<?php if (zen_not_null($maxmind_query->fields['score'])) { echo $max_comment  . '</b>'; } ?></td>
+  </tr>
+  <tr class="dataTableHeadingRow">
+    <td colspan="7"><?php echo '<b>' . MAXMIND_EXPLANATION; ?>&nbsp;<?php if (zen_not_null($maxmind_query->fields['explanation'])) { echo $maxmind_query->fields['explanation'] . '.</b>'; } ?></td>
   </tr>
 </table>
 <table width="100%" cellpadding="2" cellspacing="0" border="0">
   <tr class="dataTableRow">
-    <td width="25%" class="dataTableContent"><div align="center"><?php echo '<a href="' . zen_href_link(FILENAME_MAXMIND_UPDATE, 'oID=' . $oID , 'NONSSL') . '">' . MAXMIND_UPDATE_NOW . '</a>'; ?></div></td>
+    <td width="25%" class="dataTableContent"><div align="center"><?php echo MAXMIND_UPDATE_NOW . ': ' ?><?php echo '<a href="' . zen_href_link(FILENAME_MAXMIND_UPDATE, 'oID=' . $oID . '&requested_type=free' , 'NONSSL') . '">' . MAXMIND_UPDATE_FREE . '</a>'; ?>&nbsp;|&nbsp;<?php if (zen_not_null($bin_info->fields['cc_bin_name'])) { echo '<a href="' . zen_href_link(FILENAME_MAXMIND_UPDATE, 'oID=' . $oID . '&requested_type=city' , 'NONSSL') . '">' . MAXMIND_UPDATE_CITY . '</a>'; } else { echo '<a href="' . zen_href_link(FILENAME_MAXMIND_UPDATE, 'oID=' . $oID . '&requested_type=city' , 'NONSSL') . '">' . MAXMIND_UPDATE_CITY_B . '</a>'; } ?>&nbsp;|&nbsp;<?php if (zen_not_null($bin_info->fields['cc_bin_name'])) { echo '<a href="' . zen_href_link(FILENAME_MAXMIND_UPDATE, 'oID=' . $oID . '&requested_type=premium' , 'NONSSL') . '">' . MAXMIND_UPDATE_PREMIUM_B . '</a>'; } else { echo '<a href="' . zen_href_link(FILENAME_MAXMIND_UPDATE, 'oID=' . $oID . '&requested_type=premium' , 'NONSSL') . '">' . MAXMIND_UPDATE_PREMIUM . '</a>'; } ?></div></td>
     <td width="25%" class="dataTableContent"><div align="center"><?php echo '<a href="' . zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('oID', 'action')) . 'oID=' . $oID . '&action=edit&maxmind=delete', 'NONSSL') . '">' . MAXMIND_DELETE_NOW . '</a>'; ?></div></td>
     <td width="25%" class="dataTableContent"><div align="center"><?php echo MAXMIND_DETAILS; ?></div></td>
   </tr>
@@ -660,7 +661,7 @@ case MAX_REQUESTS_REACHED: $max_easy_error = MAXMIND_MAX_REQUESTS_REACHED; break
 
       if (isset($order->products[$i]['attributes']) && (sizeof($order->products[$i]['attributes']) > 0)) {
         for ($j = 0, $k = sizeof($order->products[$i]['attributes']); $j < $k; $j++) {
-          echo '<br /><nobr><small>&nbsp;<i> - ' . $order->products[$i]['attributes'][$j]['option'] . ': ' . nl2br($order->products[$i]['attributes'][$j]['value']);
+          echo '<br /><nobr><small>&nbsp;<i> - ' . $order->products[$i]['attributes'][$j]['option'] . ': ' . nl2br(zen_output_string_protected($order->products[$i]['attributes'][$j]['value']));
           if ($order->products[$i]['attributes'][$j]['price'] != '0') echo ' (' . $order->products[$i]['attributes'][$j]['prefix'] . $currencies->format($order->products[$i]['attributes'][$j]['price'] * $order->products[$i]['qty'], true, $order->info['currency'], $order->info['currency_value']) . ')';
           if ($order->products[$i]['attributes'][$j]['product_attribute_is_free'] == '1' and $order->products[$i]['product_is_free'] == '1') echo TEXT_INFO_ATTRIBUTE_FREE;
           echo '</i></small></nobr>';
@@ -860,7 +861,7 @@ case MAX_REQUESTS_REACHED: $max_easy_error = MAXMIND_MAX_REQUESTS_REACHED; break
                 <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_ORDER_TOTAL; ?></td>
                 <td class="dataTableHeadingContent" align="center"><?php echo TABLE_HEADING_DATE_PURCHASED; ?></td>
                 <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_STATUS; ?></td>
-				<td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_MAXMIND; ?></td>
+		<td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_MAXMIND; ?></td>
                 <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_ACTION; ?>&nbsp;</td>
               </tr>
 
@@ -948,7 +949,7 @@ case 10: $max_quick_img = $maxmind_quick_score->fields['score'] . '&nbsp;' . zen
                 <td class="dataTableContent" align="right"><?php echo strip_tags($orders->fields['order_total']); ?></td>
                 <td class="dataTableContent" align="center"><?php echo zen_datetime_short($orders->fields['date_purchased']); ?></td>
                 <td class="dataTableContent" align="right"><?php echo $orders->fields['orders_status_name']; ?></td>
-				<td class="dataTableContent" align="right"><?php if (zen_not_null($maxmind_quick_score->fields['score'])) { echo $max_quick_img; } ?></td>
+		<td class="dataTableContent" align="right"><?php if (zen_not_null($maxmind_quick_score->fields['score'])) { echo $max_quick_img; } ?></td>
                 <td class="dataTableContent" align="right"><?php echo '<a href="' . zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('oID', 'action')) . 'oID=' . $orders->fields['orders_id'] . '&action=edit', 'NONSSL') . '">' . zen_image(DIR_WS_IMAGES . 'icon_edit.gif', ICON_EDIT) . '</a>'; ?><?php if (isset($oInfo) && is_object($oInfo) && ($orders->fields['orders_id'] == $oInfo->orders_id)) { echo zen_image(DIR_WS_IMAGES . 'icon_arrow_right.gif', ''); } else { echo '<a href="' . zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('oID')) . 'oID=' . $orders->fields['orders_id'], 'NONSSL') . '">' . zen_image(DIR_WS_IMAGES . 'icon_info.gif', IMAGE_ICON_INFO) . '</a>'; } ?>&nbsp;</td>
               </tr>
 <?php
@@ -1033,7 +1034,7 @@ case 10: $max_quick_img = $maxmind_quick_score->fields['score'] . '&nbsp;' . zen
 
         if (sizeof($order->products[$i]['attributes']) > 0) {
           for ($j=0; $j<sizeof($order->products[$i]['attributes']); $j++) {
-            $contents[] = array('text' => '&nbsp;<i> - ' . $order->products[$i]['attributes'][$j]['option'] . ': ' . nl2br($order->products[$i]['attributes'][$j]['value']) . '</i></nobr>' );
+            $contents[] = array('text' => '&nbsp;<i> - ' . $order->products[$i]['attributes'][$j]['option'] . ': ' . nl2br(zen_output_string_protected($order->products[$i]['attributes'][$j]['value'])) . '</i></nobr>' );
           }
         }
         if ($i > MAX_DISPLAY_RESULTS_ORDERS_DETAILS_LISTING and MAX_DISPLAY_RESULTS_ORDERS_DETAILS_LISTING != 0) {

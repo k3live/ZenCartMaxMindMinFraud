@@ -6,10 +6,10 @@
 </head>
 
 <body>
-<p align="center"><font size="+2">MaxMind Credit Card Fraud Detection v1.1 for ZenCart 
+<p align="center"><font size="+2">MaxMind Credit Card Fraud Detection v1.2 for ZenCart 
 </font></p>
 <p align="left"><u><font size="+1">Overview</font></u><br />
-1. This has been tested on ZenCart 1.37, your mileage on earlier versions may vary.<br />
+1. This has been tested on ZenCart 1.37.1, your mileage on earlier versions may vary.<br />
 2. This addon will allow the store owner to query the MaxMind server to identify and place a risk score on transactions.<br />
 3. You MUST have an account with MaxMind to use this addon! You may get a test license with 1000 queries at:<br />
 <a href="http://www.maxmind.com/app/ccv2r_signup?rId=k3live">http://www.maxmind.com/app/ccv2r_signup</a></p>
@@ -32,6 +32,10 @@ includes/modules/pages/checkout_process/header.php</p>
 <p align="left">If you want to use the credit card issuer (BIN) name and phone number fraud scoring, or if you use the default credit card module and do not store credit card numbers on the server (you e-mail the middle numbers), you will need to replace:<br />
   includes/modules/payment/cc.php<br />
 (This needs to be done to change which numbers stay on the server and which get e-mailed to you, we need the first 6 numbers to pass on to MaxMind)</p>
+<p align="left">If you use GoogleCheckout you need to replace:<br />
+  googlecheckout/responsehandler.php<br />
+  (This needs to be done so the ip address is collected from the GoogleCheckout message and stored in the database.)<br />
+</p>
 <p align="left">All other files are added and used with Zen Magic:<br />
   admin/maxmind_orders.php<br />
 admin/maxmind_update.php<br />
@@ -40,29 +44,49 @@ admin/images/flags/*.*
 admin/includes/boxes/extra_boxes/maxmind_orders_customers_dhtml.php<br />
 admin/includes/extra_datafiles/maxmind_orders.php<br />
 admin/includes/languages/english/extra_definitions/maxmind_orders.php<br />
+googlecheckout/responsehandler.php ***Only needed if you use GoogleCheckout***<br />
 images/maxmind_ccfd.gif<br />
 includes/extra_datafiles/maxmind_orders.php<br />
-includes/modules/maxmind/CreditCardFraudDetection.php<br />
-includes/modules/maxmind/GeoIP.dat<br />
-includes/modules/maxmind/geoip.inc<br />
-includes/modules/maxmind/HTTPBase.php<br />
-includes/modules/maxmind/maxmind.php<br />
+includes/languages/english/extra_definitions/maxmind_orders.php<br />
+  includes/modules/maxmind/CreditCardFraudDetection.php<br />
+  includes/modules/maxmind/GeoIP.dat<br />
+  includes/modules/maxmind/geoip.inc<br />
+  includes/modules/maxmind/HTTPBase.php<br />
+  includes/modules/maxmind/maxmind.php<br />
   includes/modules/payment/cc.php ***Read note above, only needed if you want to use BIN scoring or e-mail partial credit card numbers*** <br />
-includes/modules/pages/checkout_process/header.php ***Read note above, only needed if you want to auto-process orders***</p>
+includes/modules/pages/checkout_process/header.php ***Read note above, only needed if you want to auto-process orders***<br />
+</p>
 <p align="left">Once you have uploaded the required files you need to add the new database fields:<br />
 Go to Your Store -&gt; Admin -&gt; Tools -&gt; Install SQL Patches<br />
   Browse and upload maxmind_orders.sql</p>
 <p align="left">Make sure you have your MaxMind License Key (available from <a href="http://www.maxmind.com/app/ccv2r_signup?rId=k3live">http://www.maxmind.com/app/ccv2r_signup</a>):<br />
 Go to Your Store -&gt; Admin -&gt; Configuration -&gt; My Store <br />
 Find MaxMind License Key and update it with your license key. </p>
-<p align="left"><u><font size="+1">Change Notes</font></u><br />
-  1. MaxMind API Version Updated to 1.43 (Adds support for username and password input fields.)<br />
+<p align="left"><u><font size="+1">Upgrading</font></u><font size="+1"><br />
+</font>Replace all files.<br />
+  Go to Your Store -&gt; Admin -&gt; Tools -&gt; Install SQL Patches<br />
+Browse and upload maxmind_orders_1.1-1.2.sql<br />
+</p>
+<p align="left"><u><font size="+1">Change Notes 1.1 - 1.2</font></u><br />
+1. Fixed delivery city not being passed for processing.<br />
+2. Fixed delivery state not being passed for processing.<br />
+3. Now compatible with GoogleCheckout (Check to see if state &amp; country are already zone id's, store ip address).<br />
+4. Implemented new scoring (0-100 vs 0-10).<br />
+5. Implemented new score explanation.<br />
+6. Now includes checkout definitions for BIN name and phone on order page.<br />
+7. Manual update now shows what information is being sent out for processing.<br />
+8. Manual update query type selectable link (basic, standard, premium).<br />
+9. Manual delete now uses messageStack for success message.<br />
+10. Credit card checkout now has language file for bin name and phone.<br />
+</p>
+<p align="left"><u><font size="+1">Change Notes 1.0 - 1.1</font></u><br />
+  1. MaxMind API Version Updated to 1.43 (Adds support for username and password input fields).<br />
 2. Corrected Standard and Premium services fields.<br />
-3. Added link to MaxMind ID field to view input/ouput in MaxMind Support Log <br />
+3. Added link to MaxMind ID field to view input/ouput in MaxMind Support Log.<br />
 4. Removed spam score, now integrated in returned proxy score.<br />
 5. Implemented BIN name and phone in credit card module.<br />
-6. Implemented score inaccuracy reporting, currently supports feedback for scores 1,3, &amp; 5. <br />
-7. Fixed fraud score on order_edit page, no longer rounded. <br />
+6. Implemented score inaccuracy reporting, currently supports feedback for scores 1,3, &amp; 5.<br />
+7. Fixed fraud score on order_edit page, no longer rounded.<br />
 </p>
 <p align="left"><u><font size="+1">To-Do List </font></u><br />
 1. Implement new observer class notifier and remove modifications to checkout_success.php.<br />
@@ -84,7 +108,7 @@ A. It works for me :)</p>
 A. Please direct all contributions to the <a href="http://www.zen-cart.com/modules/freecontent/index.php?id=6">ZenCart Team</a></p>
 <p align="left">Q. Why is the readme in HTML?<br />
   A. I like HTML, get over it :)</p>
-<p align="left">Last modified January 11th, 2007<br />
+<p align="left">Last modified July 28th, 2007<br />
   Kevin M. <br />
   ses707
 </p>

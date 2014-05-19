@@ -14,6 +14,8 @@ CREATE TABLE `orders_maxmind` (
   `free_mail` char(3) NOT NULL default '',
   `anonymous_proxy` char(3) NOT NULL default '',
   `score` varchar(5) NOT NULL default '',
+  `risk_score` varchar(5) NOT NULL default '',
+  `explanation` blob NOT NULL,
   `bin_match` varchar(5) NOT NULL default '',
   `bin_country` varchar(5) NOT NULL default '',
   `err` varchar(20) NOT NULL default '',
@@ -29,8 +31,6 @@ CREATE TABLE `orders_maxmind` (
   `hi_risk` char(3) NOT NULL default '',
   `trans_proxy` char(3) NOT NULL default '',
   `carder_email` char(3) NOT NULL default '',
-  `high_risk_username` char(3) NOT NULL default '',
-  `high_risk_password` char(3) NOT NULL default '',
   `bin_name_match` varchar(8) NOT NULL default '',
   `bin_phone_match` varchar(8) NOT NULL default '',
   `bin_phone` varchar(10) NOT NULL default '',
@@ -39,6 +39,8 @@ CREATE TABLE `orders_maxmind` (
   `ship_city_postal_match` char(3) NOT NULL default '',
   `queries_remaining` varchar(5) NOT NULL default '',
   `maxmind_id` varchar(8) NOT NULL default '',
+  `high_risk_username` char(3) NOT NULL default '',
+  `high_risk_password` char(3) NOT NULL default '',
   KEY `order_id` (`order_id`)
 ) TYPE=MyISAM;
 

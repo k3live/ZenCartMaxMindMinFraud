@@ -5,7 +5,7 @@
 // +----------------------------------------------------------------------+
 // | This source file is subject to version 2.0 of the GPL license.       |
 // +----------------------------------------------------------------------+
-//  $Id: maxmind_orders.php 1.1 2007-01-05 23:07:39Z ses707 $
+//  $Id: maxmind_orders.php 1.2 2007-01-05 23:07:39Z ses707 $
 //
 
 define('HEADING_TITLE', 'MaxMind Orders');
@@ -153,7 +153,9 @@ define('MAXMIND_CITY_POSTAL_MATCH', 'City Postal Match:');
 define('MAXMIND_SHIP_CITY_POSTAL_MATCH', 'Ship City Postal Match:');
 
 //Risk Score
-define('MAXMIND_SCORE', 'Score:');
+define('MAXMIND_SCORE', 'Score (0-10):');
+define('MAXMIND_RISK_SCORE', 'Score (0-100):');
+define('MAXMIND_EXPLANATION', 'Explanation:');
 
 //Account Information
 define('MAXMIND_QUERIES_REMAINING', 'Queries Remaining:');
@@ -167,12 +169,19 @@ define('MAXMIND_PREMIUM', '<b>You need to be subscribed to Premium Services at <
 //Admin Information and Functions
 define('MAXMIND_DETAILS', 'See <a href="http://www.maxmind.com/app/fraud-detection-manual?rId=k3live" target="_blank"><u>MaxMind.com</u></a> for a detailed explanation of fields.');
 define('MAXMIND_UPDATE_NOW', '<u>Update MaxMind Information</u>');
+define('MAXMIND_UPDATE_FREE', '<u>Basic</u>');
+define('MAXMIND_UPDATE_CITY', '<u>Standard</u>');
+define('MAXMIND_UPDATE_PREMIUM', '<u>Premium</u>');
+define('MAXMIND_UPDATE_CITY_B', '<u><b>Standard</b></u>');
+define('MAXMIND_UPDATE_PREMIUM_B', '<u><b>Premium</b></u>');
 define('MAXMIND_DELETE_NOW', '<u>Delete MaxMind Information</u>');
 define('MAXMIND_BACK', '<b><- Go back to this order</b>');
 define('MAXMIND_REPORT', 'Report Score Inaccuracy:');
 define('MAXMIND_BIN_NAME_INPUT', 'Bin Name Input:');
 define('MAXMIND_BIN_PHONE_INPUT', 'Bin Phone Input:');
 define('TABLE_HEADING_MAXMIND', 'MaxMind');
+define('MAXMIND_MINIFRAUD_VERSION_OUT_OF_DATE', 'It appears that your MaxMind miniFraud account has not been updated to version 1.1. Please visit <a href="http://www.maxmind.com/app/minfraud_version?rId=k3live" target="_blank">MaxMind.com</a> and select miniFraud version 1.1.<br />&nbsp;&nbsp;&nbsp;(Note: This warning will appear on older orders that do not contain an explanation and can be safely ignored.)');
+define('MAXMIND_DELETED', 'Deleted MaxMind Information');
 
 //Score Comments
 define('MAXMIND_0', '<font color="#00CC00"> (Extremely Low Risk)</font>');

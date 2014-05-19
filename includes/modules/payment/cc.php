@@ -5,16 +5,41 @@
 // +----------------------------------------------------------------------+
 // | This source file is subject to version 2.0 of the GPL license.       |
 // +----------------------------------------------------------------------+
-// $Id: cc.php 1.1 2007-01-05 23:24:29Z ses707 $
+// $Id: cc.php 1.2 2007-01-05 23:24:29Z ses707 $
 //
-
+/**
+ * Manual Credit Card payment module
+ * This module is used for MANUAL processing of credit card data collected from customers.
+ * It should ONLY be used if no other gateway is suitable, AND you must have SSL active on your server for your own protection.
+ */
 class cc extends base {
+  /**
+   * $code determines the internal 'code' name used to designate "this" payment module
+   *
+   * @var string
+   */
   var $code;
+  /**
+   * $title is the displayed name for this payment method
+   *
+   * @var string
+   */
   var $title;
+  /**
+   * $description is a soft name for this payment method
+   *
+   * @var string
+   */
   var $description;
+  /**
+   * $enabled determines whether this module shows or not... in catalog.
+   *
+   * @var boolean
+   */
   var $enabled;
-
-// class constructor
+  /**
+   * @return cc
+   */
   function cc() {
     global $order;
 
@@ -30,8 +55,10 @@ class cc extends base {
 
     if (is_object($order)) $this->update_status();
   }
-
-// class methods
+  /**
+   * calculate zone matches and flag settings to determine whether this module should display to customers or not
+   *
+   */
   function update_status() {
     global $order, $db;
 
@@ -54,7 +81,12 @@ class cc extends base {
       }
     }
   }
-
+  /**
+   * JS validation which does error-checking of data-entry if this module is selected for use
+   * (Number, Owner, and CVV Lengths)
+   *
+   * @return string
+   */
   function javascript_validation() {
     $js = '  if (payment_value == "' . $this->code . '") {' . "\n" .
     '    var cc_owner = document.checkout_payment.cc_owner.value;' . "\n" .
@@ -83,7 +115,11 @@ class cc extends base {
     $js .= '  }' . "\n";
     return $js;
   }
-
+  /**
+   * Builds set of input fields for collecting cc info
+   *
+   * @return array
+   */
   function selection() {
     global $order;
 
@@ -130,10 +166,15 @@ class cc extends base {
 	//MaxMind End
     return $selection;
   }
-
+  /**
+   * Evaluates the Credit Card Type for acceptance and the validity of the Credit Card Number & Expiration Date
+   *
+   */
   function pre_confirmation_check() {
     global $_POST, $messageStack;
-
+    /**
+     * Load the cc_validation class
+     */
     include(DIR_WS_CLASSES . 'cc_validation.php');
 
     $cc_validation = new cc_validation();
@@ -153,7 +194,9 @@ class cc extends base {
       $error = TEXT_CCVAL_ERROR_INVALID_NUMBER;
       break;
     }
-
+    /**
+     *
+     */
     if ( ($result == false) || ($result < 1) ) {
       $payment_error_return = 'payment_error=' . $this->code . '&cc_owner=' . urlencode($_POST['cc_owner']) . '&cc_expires_month=' . $_POST['cc_expires_month'] . '&cc_expires_year=' . $_POST['cc_expires_year'];
 
@@ -164,7 +207,11 @@ class cc extends base {
     $this->cc_card_type = $cc_validation->cc_type;
     $this->cc_card_number = $cc_validation->cc_number;
   }
-
+  /**
+   * Display Credit Card Information on the Checkout Confirmation Page
+   *
+   * @return array
+   */
   function confirmation() {
     global $_POST;
 
@@ -192,7 +239,13 @@ class cc extends base {
 	//MaxMind End
     return $confirmation;
   }
-
+  /**
+   * Build the data and actions to process when the "Submit" button is pressed on the order-confirmation screen.
+   * This sends the data to the payment gateway for processing.
+   * (These are hidden fields on the checkout confirmation page)
+   *
+   * @return string
+   */
   function process_button() {
     global $_POST;
 
@@ -214,7 +267,10 @@ class cc extends base {
 
     return $process_button_string;
   }
-
+  /**
+   * Store the CC info to the order
+   *
+   */
   function before_process() {
     global $_POST, $order;
 
@@ -231,12 +287,15 @@ class cc extends base {
 	//MaxMind End
 
     $len = strlen($_POST['cc_number']);
-        $this->cc_middle = substr($_POST['cc_number'], 6, ($len-8));
+    $this->cc_middle = substr($_POST['cc_number'], 6, ($len-8));
     if ( (defined('MODULE_PAYMENT_CC_EMAIL')) && (zen_validate_email(MODULE_PAYMENT_CC_EMAIL)) ) {
-        $order->info['cc_number'] = substr($_POST['cc_number'], 0, 6) . str_repeat('X', (strlen($_POST['cc_number']) - 8)) . substr($_POST['cc_number'], -2);
+      $order->info['cc_number'] = substr($_POST['cc_number'], 0, 6) . str_repeat('X', (strlen($_POST['cc_number']) - 8)) . substr($_POST['cc_number'], -2);
     }
   }
-
+  /**
+   * Send the collected information via email to the store owner, storing outer digits and emailing middle digits
+   *
+   */
   function after_process() {
     global $insert_id;
 
@@ -251,7 +310,11 @@ class cc extends base {
       //zen_mail(EMAIL_FROM, EMAIL_FROM, MODULE_PAYMENT_CC_TEXT_EMAIL_ERROR . SEND_EXTRA_CC_EMAILS_TO_SUBJECT . $insert_id, $message, STORE_NAME, EMAIL_FROM, $html_msg, 'cc_middle_digs');
     //}
   }
-
+  /**
+   * Store additional order information
+   *
+   * @param int $zf_order_id
+   */
   function after_order_create($zf_order_id) {
     global $db, $order;
     if (MODULE_PAYMENT_CC_COLLECT_CVV == 'True')  {
@@ -266,7 +329,11 @@ class cc extends base {
     }
 	//Maxmind End
   }
-    
+  /**
+   * Used to display error message details
+   *
+   * @return array
+   */
   function get_error() {
     global $_GET;
 
@@ -275,7 +342,11 @@ class cc extends base {
 
     return $error;
   }
-
+  /**
+   * Check to see whether module is installed
+   *
+   * @return boolean
+   */
   function check() {
     global $db;
     if (!isset($this->_check)) {
@@ -284,7 +355,10 @@ class cc extends base {
     }
     return $this->_check;
   }
-
+  /**
+   * Install the payment module and its configuration settings
+   *
+   */
   function install() {
     global $db;
     $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Enable Credit Card Module', 'MODULE_PAYMENT_CC_STATUS', 'True', 'Do you want to accept credit card payments?', '6', '130', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
@@ -297,15 +371,22 @@ class cc extends base {
     //MaxMind Start
     $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Collect & store the Bin Name', 'MODULE_PAYMENT_CC_COLLECT_BIN_NAME', 'True', 'Do you want to collect the Bin Name.', '6', '732', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
     $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Collect & store the Bin Phone', 'MODULE_PAYMENT_CC_COLLECT_BIN_PHONE', 'True', 'Do you want to collect the Bin Phone.', '6', '733', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
-	//MaxMind End
+    //MaxMind End
   
   }
-
+  /**
+   * Remove the module and all its settings
+   *
+   */
   function remove() {
     global $db;
     $db->Execute("delete from " . TABLE_CONFIGURATION . " where configuration_key like 'MODULE_PAYMENT_CC_%'");
   }
-
+  /**
+   * Internal list of configuration keys used for configuration of the module
+   *
+   * @return array
+   */
   function keys() {
       return array('MODULE_PAYMENT_CC_STATUS', 'MODULE_PAYMENT_CC_COLLECT_CVV', 'MODULE_PAYMENT_CC_STORE_NUMBER', 'MODULE_PAYMENT_CC_EMAIL', 'MODULE_PAYMENT_CC_ZONE', 'MODULE_PAYMENT_CC_ORDER_STATUS_ID', 'MODULE_PAYMENT_CC_SORT_ORDER',
 	  //MaxMind Start
