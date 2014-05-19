@@ -56,12 +56,13 @@ class CreditCardFraudDetection extends HTTPBase {
     $this->allowed_fields["user_agent"] = 1;
     $this->allowed_fields["accept_language"] = 1;
 
+
     $this->num_allowed_fields = count($this->allowed_fields);
 
     //set the url of the web service
     $this->url = "app/ccv2r";
     $this->check_field = "score";
-    $this->server = array("minfraud1.maxmind.com", "minfraud2.maxmind.com");
+    $this->server = array("minfraud3.maxmind.com", "minfraud1.maxmind.com", "minfraud2.maxmind.com");
     $this->numservers = count($this->server);
     $this->API_VERSION = 'k3live';
   }
