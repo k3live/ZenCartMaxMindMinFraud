@@ -105,9 +105,8 @@ $h["shipCountry"] = $check_delivery_country->fields['countries_iso_code_2'];	// 
 $h["txnID"] = $oID;							// Transaction ID
 //$h["sessionID"] = "";							// Session ID
 
-$h["accept_language"] = "";
-$h["user_agent"] = "";
-$h["clientAPI"] = "k3live";						// Client API
+//$h["accept_language"] = "";
+//$h["user_agent"] = "";
 
 // If you want to disable Secure HTTPS or don't have Curl and OpenSSL installed
 // uncomment the next line

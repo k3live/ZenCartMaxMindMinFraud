@@ -55,7 +55,6 @@ class CreditCardFraudDetection extends HTTPBase {
     $this->allowed_fields["passwordMD5"] = 1;
     $this->allowed_fields["user_agent"] = 1;
     $this->allowed_fields["accept_language"] = 1;
-    $this->allowed_fields["clientAPI"] = 1;
 
     $this->num_allowed_fields = count($this->allowed_fields);
 
@@ -64,7 +63,7 @@ class CreditCardFraudDetection extends HTTPBase {
     $this->check_field = "score";
     $this->server = array("minfraud1.maxmind.com", "minfraud2.maxmind.com");
     $this->numservers = count($this->server);
-    $this->API_VERSION = 'PHP/1.48';
+    $this->API_VERSION = 'k3live';
   }
 
   function filter_field($key, $value) {
