@@ -19,7 +19,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-require ("HTTPBase.php");
+require_once ("HTTPBase.php");
 class CreditCardFraudDetection extends HTTPBase {
   var $server;
   var $numservers;
@@ -51,6 +51,8 @@ class CreditCardFraudDetection extends HTTPBase {
     $this->allowed_fields["shipCountry"] = 1;
     $this->allowed_fields["txnID"] = 1;
     $this->allowed_fields["sessionID"] = 1;
+    $this->allowed_fields["usernameMD5"] = 1;
+    $this->allowed_fields["passwordMD5"] = 1;
 
     $this->num_allowed_fields = count($this->allowed_fields);
 
@@ -59,12 +61,16 @@ class CreditCardFraudDetection extends HTTPBase {
     $this->check_field = "score";
     $this->server = array("www.maxmind.com", "www2.maxmind.com");
     $this->numservers = count($this->server);
-    $this->API_VERSION = 'PHP/1.4';
+    $this->API_VERSION = 'PHP/1.43';
   }
 
   function filter_field($key, $value) {
     if ($key == 'emailMD5'){
       if (ereg('\@',$value)){
+	return md5(strtolower($value));
+      }
+    } else if ($key == 'usernameMD5' || $key == 'passwordMD5') {
+      if (strlen($value) != 32) {
 	return md5(strtolower($value));
       }
     }

@@ -1,3 +1,11 @@
+ALTER TABLE `orders` ADD `cc_bin_name` VARCHAR( 32 ) DEFAULT NULL ,
+ADD `cc_bin_phone` VARCHAR( 32 ) DEFAULT NULL ;
+
+ALTER TABLE `orders` ADD FULLTEXT (
+`cc_bin_name` ,
+`cc_bin_phone` 
+);
+
 CREATE TABLE `orders_maxmind` (
   `order_id` varchar(6) NOT NULL default '',
   `distance` varchar(5) NOT NULL default '',
@@ -10,7 +18,6 @@ CREATE TABLE `orders_maxmind` (
   `bin_country` varchar(5) NOT NULL default '',
   `err` varchar(20) NOT NULL default '',
   `proxy_score` varchar(5) NOT NULL default '',
-  `spam_score` varchar(5) NOT NULL default '',
   `bin_name` varchar(20) NOT NULL default '',
   `cust_phone` varchar(15) NOT NULL default '',
   `ip_city` varchar(21) NOT NULL default '',
@@ -22,6 +29,8 @@ CREATE TABLE `orders_maxmind` (
   `hi_risk` char(3) NOT NULL default '',
   `trans_proxy` char(3) NOT NULL default '',
   `carder_email` char(3) NOT NULL default '',
+  `high_risk_username` char(3) NOT NULL default '',
+  `high_risk_password` char(3) NOT NULL default '',
   `bin_name_match` varchar(8) NOT NULL default '',
   `bin_phone_match` varchar(8) NOT NULL default '',
   `bin_phone` varchar(10) NOT NULL default '',

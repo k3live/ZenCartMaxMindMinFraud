@@ -1,23 +1,11 @@
 <?php
 //
 // +----------------------------------------------------------------------+
-// |zen-cart Open Source E-commerce                                       |
+// |MaxMind CCFD Module for Zen-Cart Open Source E-commerce               |
 // +----------------------------------------------------------------------+
-// | Copyright (c) 2003 The zen-cart developers                           |
-// |                                                                      |
-// | http://www.zen-cart.com/index.php                                    |
-// |                                                                      |
-// | Portions Copyright (c) 2003 osCommerce                               |
+// | This source file is subject to version 2.0 of the GPL license.       |
 // +----------------------------------------------------------------------+
-// | This source file is subject to version 2.0 of the GPL license,       |
-// | that is bundled with this package in the file LICENSE, and is        |
-// | available through the world-wide-web at the following url:           |
-// | http://www.zen-cart.com/license/2_0.txt.                             |
-// | If you did not receive a copy of the zen-cart license and are unable |
-// | to obtain it through the world-wide-web, please send a note to       |
-// | license@zen-cart.com so we can mail you a copy immediately.          |
-// +----------------------------------------------------------------------+
-//  $Id: maxmind_orders.php 1.0 2005-11-10 21:15:39Z ses707 $
+//  $Id: maxmind_orders.php 1.1 2007-01-05 23:07:39Z ses707 $
 //
 
 define('HEADING_TITLE', 'MaxMind Orders');
@@ -120,70 +108,99 @@ define('SUCCESS_ORDER_UPDATED_DOWNLOAD_OFF', 'Download was successfully disabled
 define('TEXT_MORE', '... more');
 
 define('TEXT_INFO_IP_ADDRESS', 'IP Address: ');
+define('TEXT_INFO_START_IP_ADDRESS', 'Start IP Address: ');
+define('TEXT_INFO_END_IP_ADDRESS', 'End IP Address: ');
+define('TEXT_DELETE_CVV_FROM_DATABASE','Delete CVV from database');
+define('TEXT_DELETE_CVV_REPLACEMENT','Deleted');
+define('TEXT_MASK_CC_NUMBER','Mask this number');
 
-//MaxMind Information
+//MaxMind
+//Geographical IP address location checking
+define('MAXMIND_COUNTRY', 'Match:');
+define('MAXMIND_CODE', 'Country Code');
+define('MAXMIND_HI_RISK', 'High Risk Country:');
 define('MAXMIND_DISTANCE', 'Distance:');
-define('MAXMIND_COUNTRY', 'Country Match:');
-define('MAXMIND_CODE', 'Country Code:');
-define('MAXMIND_FREE_EMAIL', 'Free Email:');
-define('MAXMIND_ANONYMOUS', 'Anonymous Proxy:');
-define('MAXMIND_SCORE', 'Score:');
-define('MAXMIND_BIN_MATCH', 'Bin Match:');
-define('MAXMIND_BIN_COUNTRY', 'Bin Country:');
-define('MAXMIND_ERR', 'Error:');
-define('MAXMIND_PROXY_SCORE', 'Proxy Score:');
-define('MAXMIND_SPAM', 'Spam Score:');
-define('MAXMIND_BIN_NAME', 'Bin Name:');
-define('MAXMIND_BIN_COUNTRY', 'Bin Country:');
+define('MAXMIND_IP_REGION', 'Region: ');
+define('MAXMIND_IP_CITY', 'City: ');
+define('MAXMIND_IP_LATITUDE', 'Latitude: ');
+define('MAXMIND_IP_LONGITUDE', 'Longitude: ');
 define('MAXMIND_IP_ISP', 'ISP:');
 define('MAXMIND_IP_ISP_ORG', 'ISP Org:');
-define('MAXMIND_IP_CITY', 'City:');
-define('MAXMIND_IP_REGION', 'Region:');
-define('MAXMIND_IP_LATITUDE', 'Latitude:');
-define('MAXMIND_IP_LONGITUDE', 'Longitude:');
-define('MAXMIND_PREMIUM', '<b>You need to be subscribed to Premium Services at <a href="http://www.maxmind.com/app/ccfd_features?rId=k3live" target="_blank"><u>MaxMind.com</u></a> for the following fields:</b>');
-define('MAXMIND_HI_RISK', 'High Risk Country:');
+
+//Proxy Detection
+define('MAXMIND_ANONYMOUS_PROXY', 'Anonymous Proxy:');
+define('MAXMIND_PROXY_SCORE', 'Proxy Score:');
+define('MAXMIND_TRANSPARENT_PROXY', 'Transparent Proxy:');
+
+//E-mail and Login Checks
+define('MAXMIND_FREE_EMAIL', 'Free Email:');
+define('MAXMIND_CARDER_EMAIL', 'Known Carder Email:');
+define('MAXMIND_HIGH_RISK_USERNAME', 'High Risk User');
+define('MAXMIND_HIGH_RISK_PASSWORD', 'Pass:');
+
+//Issuing Bank BIN Number Checks
+define('MAXMIND_BIN_COUNTRY_MATCH', 'Bin Country Match:');
+define('MAXMIND_BIN_COUNTRY_OUTPUT', 'Bin Country Output: ');
+define('MAXMIND_BIN_NAME_MATCH', 'Bin Name Match:');
+define('MAXMIND_BIN_NAME_OUTPUT', 'Bin Name Output: ');
+define('MAXMIND_BIN_PHONE_MATCH', 'Bin Phone Match:');
+define('MAXMIND_BIN_PHONE_OUTPUT', 'Bin Phone Output: ');
+
+//Address and Phone Number Checks
 define('MAXMIND_CUST_PHONE', 'Phone Match:');
-define('MAXMIND_DETAILS', 'See <a href="http://www.maxmind.com/app/ccv?rId=k3live" target="_blank"><u>MaxMind.com</u></a> for a detailed explanation of fields.');
+define('MAXMIND_SHIP_FORWARD', 'Known Ship Forwarding:');
+define('MAXMIND_CITY_POSTAL_MATCH', 'City Postal Match:');
+define('MAXMIND_SHIP_CITY_POSTAL_MATCH', 'Ship City Postal Match:');
+
+//Risk Score
+define('MAXMIND_SCORE', 'Score:');
+
+//Account Information
+define('MAXMIND_QUERIES_REMAINING', 'Queries Remaining:');
+define('MAXMIND_ID', 'MaxMind ID:');
+define('MAXMIND_ERR', 'Error:');
+
+//Standard and Premium
+define('MAXMIND_STANDARD', '<b>You need to be subscribed to Standard Services at <a href="http://www.maxmind.com/app/ccfd_features?rId=k3live" target="_blank"><u>MaxMind.com</u></a> for the following fields:</b>');
+define('MAXMIND_PREMIUM', '<b>You need to be subscribed to Premium Services at <a href="http://www.maxmind.com/app/ccfd_features?rId=k3live" target="_blank"><u>MaxMind.com</u></a> for the following fields:</b>');
+
+//Admin Information and Functions
+define('MAXMIND_DETAILS', 'See <a href="http://www.maxmind.com/app/fraud-detection-manual?rId=k3live" target="_blank"><u>MaxMind.com</u></a> for a detailed explanation of fields.');
 define('MAXMIND_UPDATE_NOW', '<u>Update MaxMind Information</u>');
 define('MAXMIND_DELETE_NOW', '<u>Delete MaxMind Information</u>');
 define('MAXMIND_BACK', '<b><- Go back to this order</b>');
-define('MAXMIND_CITY_POSTAL_MATCH', 'City Postal Match:');
-define('MAXMIND_SHIP_CITY_POSTAL_MATCH', 'Ship City Postal Match:');
-define('MAXMIND_SHIP_FORWARD', 'Known Ship Forwarding:');
-define('MAXMIND_ID', 'MaxMind ID:');
-define('MAXMIND_QUERIES_REMAINING', 'Queries Remaining:');
-define('MAXMIND_CARDER_EMAIL', 'Known Carder Email:');
-define('MAXMIND_ID', 'MaxMind ID:');
+define('MAXMIND_REPORT', 'Report Score Inaccuracy:');
+define('MAXMIND_BIN_NAME_INPUT', 'Bin Name Input:');
+define('MAXMIND_BIN_PHONE_INPUT', 'Bin Phone Input:');
+define('TABLE_HEADING_MAXMIND', 'MaxMind');
 
-//MaxMind Score Comments
-define('MAXMIND_0', '<font color="#00CC00">0 (Extremely Low risk)</font>');
-define('MAXMIND_1', '<font color="#00CC00">1 (Very Low risk)</font>');
-define('MAXMIND_2', '<font color="#00CC00">2 (Low risk)</font>');
-define('MAXMIND_3', '<font color="#00CC00">3 (Low risk)</font>');
-define('MAXMIND_4', '<font color="#FF9900">4 (Low-Medium risk)</font>');
-define('MAXMIND_5', '<font color="#FF9900">5 (Medium risk)</font>');
-define('MAXMIND_6', '<font color="#FF9900">6 (Medium-high risk)</font>');
-define('MAXMIND_7', '<font color="#FF9900">7 (High risk)</font>');
-define('MAXMIND_8', '<font color="#FF0000">8 (Very High risk)</font>');
-define('MAXMIND_9', '<font color="#FF0000">9 (Extremely High risk)</font>');
-define('MAXMIND_10', '<font color="#FF0000">10 (I can smell the fraud from here)</font>');
+//Score Comments
+define('MAXMIND_0', '<font color="#00CC00"> (Extremely Low Risk)</font>');
+define('MAXMIND_1', '<font color="#00CC00"> (Very Low Risk)</font>');
+define('MAXMIND_2', '<font color="#00CC00"> (Low Risk)</font>');
+define('MAXMIND_3', '<font color="#00CC00"> (Low Risk)</font>');
+define('MAXMIND_4', '<font color="#FF9900"> (Low-Medium Risk)</font>');
+define('MAXMIND_5', '<font color="#FF9900"> (Medium Risk)</font>');
+define('MAXMIND_6', '<font color="#FF9900"> (Medium-High Risk)</font>');
+define('MAXMIND_7', '<font color="#FF0000"> (High Risk)</font>');
+define('MAXMIND_8', '<font color="#FF0000"> (Very High Risk)</font>');
+define('MAXMIND_9', '<font color="#FF0000"> (Extremely High Risk)</font>');
+define('MAXMIND_10', '<font color="#FF0000"> (I can smell the fraud from here!)</font>');
 
-//MaxMind Errors
+//Warning Errors
 define('MAXMIND_IP_NOT_FOUND', 'IP Address Not Found');
 define('MAXMIND_COUNTRY_NOT_FOUND', 'Country Not Found');
 define('MAXMIND_CITY_NOT_FOUND', 'City Not Found');
 define('MAXMIND_CITY_REQUIRED', 'City Required');
 define('MAXMIND_POSTAL_CODE_REQUIRED', 'Postal Code Required');
 define('MAXMIND_POSTAL_CODE_NOT_FOUND', 'Postal Code Not Found');
+
+//Fatal Errors
 define('MAXMIND_INVALID_LICENSE_KEY', 'Invalid License Key');
-define('MAXMIND_MAX_REQUESTS_PER_IP', 'Maximum Requests Per IP');
 define('MAXMIND_MAX_REQUESTS_PER_LICENSE', 'Maximum Requests Per License');
 define('MAXMIND_IP_REQUIRED', 'IP Address Required');
 define('MAXMIND_LICENSE_REQUIRED', 'License Required');
 define('MAXMIND_COUNTRY_REQUIRED', 'Country Required');
 define('MAXMIND_MAX_REQUESTS_REACHED', 'Maximum Requests Reached');
-
-define('TABLE_HEADING_MAXMIND', 'MaxMind');
 
 ?>

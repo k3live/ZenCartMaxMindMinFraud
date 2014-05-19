@@ -1,23 +1,11 @@
 <?php
 //
 // +----------------------------------------------------------------------+
-// |zen-cart Open Source E-commerce                                       |
+// |MaxMind CCFD Module for Zen-Cart Open Source E-commerce               |
 // +----------------------------------------------------------------------+
-// | Copyright (c) 2003 The zen-cart developers                           |
-// |                                                                      |
-// | http://www.zen-cart.com/index.php                                    |
-// |                                                                      |
-// | Portions Copyright (c) 2003 osCommerce                               |
+// | This source file is subject to version 2.0 of the GPL license.       |
 // +----------------------------------------------------------------------+
-// | This source file is subject to version 2.0 of the GPL license,       |
-// | that is bundled with this package in the file LICENSE, and is        |
-// | available through the world-wide-web at the following url:           |
-// | http://www.zen-cart.com/license/2_0.txt.                             |
-// | If you did not receive a copy of the zen-cart license and are unable |
-// | to obtain it through the world-wide-web, please send a note to       |
-// | license@zen-cart.com so we can mail you a copy immediately.          |
-// +----------------------------------------------------------------------+
-//  $Id: maxmind_orders_customers_dhtml.php 1.0 2005-11-10 21:15:39Z ses707 $
+//  $Id: maxmind_orders_customers_dhtml.php 1.1 2007-01-05 23:03:39Z ses707 $
 //
   $za_contents[] = array('text' => BOX_MAXMIND_ORDERS, 'link' => zen_href_link(FILENAME_MAXMIND_ORDERS, '', 'SSL'));
 ?>

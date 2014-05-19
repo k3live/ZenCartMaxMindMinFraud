@@ -40,7 +40,7 @@ class HTTPBase{
     $this->timeout = 0;
     $this->check_field = "score";
     $this->wsIpaddrRefreshTimeout = 18000;
-    $this->wsIpaddrCacheFile = "maxmind.ws.cache";
+    $this->wsIpaddrCacheFile = $this->_getTempDir()."/maxmind.ws.cache";
     if ($this->debug == 1) {
       print "wsIpaddrRefreshTimeout: " . $this->wsIpaddrRefreshTimeout . "\n";
       print "wsIpaddrCacheFile: " . $this->wsIpaddrCacheFile . "\n";
@@ -397,6 +397,34 @@ class HTTPBase{
     //  return 0;
     //}
     return 1;
+  }
+
+  function _getTempDir() {
+    if (ini_get('upload_tmp_dir')) {
+      return ini_get('upload_tmp_dir');
+    }
+
+    if (substr(PHP_OS, 0, 3) != 'WIN') {
+      return '/tmp';
+    }
+
+    if (isset($_ENV['TMP'])) {
+      return $_ENV['TMP'];
+    }
+
+    if (isset($_ENV['TEMP'])) {
+      return $_ENV['TEMP'];
+    }
+
+    if (is_dir('c:\\windows\\temp')) {
+      return 'c:\\windows\\temp';
+    }
+
+    if (is_dir('c:\\winnt\\temp')) {
+      return 'c:\\winnt\\temp';
+    }
+
+    return '.';
   }
 }
 ?>

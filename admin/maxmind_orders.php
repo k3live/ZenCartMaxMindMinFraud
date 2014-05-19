@@ -1,23 +1,11 @@
 <?php
 //
 // +----------------------------------------------------------------------+
-// |zen-cart Open Source E-commerce                                       |
+// |MaxMind CCFD Module for Zen-Cart Open Source E-commerce               |
 // +----------------------------------------------------------------------+
-// | Copyright (c) 2003 The zen-cart developers                           |
-// |                                                                      |
-// | http://www.zen-cart.com/index.php                                    |
-// |                                                                      |
-// | Portions Copyright (c) 2003 osCommerce                               |
+// | This source file is subject to version 2.0 of the GPL license.       |
 // +----------------------------------------------------------------------+
-// | This source file is subject to version 2.0 of the GPL license,       |
-// | that is bundled with this package in the file LICENSE, and is        |
-// | available through the world-wide-web at the following url:           |
-// | http://www.zen-cart.com/license/2_0.txt.                             |
-// | If you did not receive a copy of the zen-cart license and are unable |
-// | to obtain it through the world-wide-web, please send a note to       |
-// | license@zen-cart.com so we can mail you a copy immediately.          |
-// +----------------------------------------------------------------------+
-//  $Id: maxmind_orders.php 1.0 2005-11-10 21:15:39Z ses707 $
+//  $Id: maxmind_orders.php 1.1 2007-01-05 23:12:39Z ses707 $
 //
 
   require('includes/application_top.php');
@@ -25,13 +13,14 @@
   require(DIR_WS_CLASSES . 'currencies.php');
   $currencies = new currencies();
 
+  include(DIR_WS_CLASSES . 'order.php');
+
+  // prepare order-status pulldown list
   $orders_statuses = array();
   $orders_status_array = array();
   $orders_status = $db->Execute("select orders_status_id, orders_status_name
                                  from " . TABLE_ORDERS_STATUS . "
                                  where language_id = '" . (int)$_SESSION['languages_id'] . "'");
-
-
   while (!$orders_status->EOF) {
     $orders_statuses[] = array('id' => $orders_status->fields['orders_status_id'],
                                'text' => $orders_status->fields['orders_status_name'] . ' [' . $orders_status->fields['orders_status_id'] . ']');
@@ -41,7 +30,19 @@
 
   $action = (isset($_GET['action']) ? $_GET['action'] : '');
 
-  if (zen_not_null($action)) {
+  if (isset($_GET['oID'])) {
+    $oID = zen_db_prepare_input($_GET['oID']);
+
+    $orders = $db->Execute("select orders_id from " . TABLE_ORDERS . "
+                            where orders_id = '" . (int)$oID . "'");
+    $order_exists = true;
+    if ($orders->RecordCount() <= 0) {
+      $order_exists = false;
+      if ($action != '') $messageStack->add(sprintf(ERROR_ORDER_DOES_NOT_EXIST, $oID), 'error');
+    }
+  }
+
+  if (zen_not_null($action) && $order_exists == true) {
     switch ($action) {
       case 'edit':
       // reset single download to on
@@ -62,7 +63,8 @@
       // reset single download to off
         if ($_GET['download_reset_off'] > 0) {
           // adjust download_maxdays based on current date
-          $update_downloads_query = "update " . TABLE_ORDERS_PRODUCTS_DOWNLOAD . " set download_maxdays='0', download_count='0' where orders_id='" . $_GET['oID'] . "' and orders_products_download_id='" . $_GET['download_reset_off'] . "'";
+//          $update_downloads_query = "update " . TABLE_ORDERS_PRODUCTS_DOWNLOAD . " set download_maxdays='0', download_count='0' where orders_id='" . $_GET['oID'] . "' and orders_products_download_id='" . $_GET['download_reset_off'] . "'";
+          $update_downloads_query = "update " . TABLE_ORDERS_PRODUCTS_DOWNLOAD . " set download_count='0' where orders_id='" . $_GET['oID'] . "' and orders_products_download_id='" . $_GET['download_reset_off'] . "'";
           unset($_GET['download_reset_off']);
           $db->Execute($update_downloads_query);
 
@@ -112,7 +114,7 @@
       $html_msg['EMAIL_TEXT_ORDER_NUMBER'] = EMAIL_TEXT_ORDER_NUMBER . ' ' . $oID;
       $html_msg['EMAIL_TEXT_INVOICE_URL']  = '<a href="' . zen_catalog_href_link(FILENAME_CATALOG_ACCOUNT_HISTORY_INFO, 'order_id=' . $oID, 'SSL') .'">'.str_replace(':','',EMAIL_TEXT_INVOICE_URL).'</a>';
       $html_msg['EMAIL_TEXT_DATE_ORDERED'] = EMAIL_TEXT_DATE_ORDERED . ' ' . zen_date_long($check_status->fields['date_purchased']);
-      $html_msg['EMAIL_TEXT_STATUS_COMMENTS'] = $notify_comments;
+      $html_msg['EMAIL_TEXT_STATUS_COMMENTS'] = nl2br($notify_comments);
       $html_msg['EMAIL_TEXT_STATUS_UPDATED'] = str_replace('\n','', EMAIL_TEXT_STATUS_UPDATED);
       $html_msg['EMAIL_TEXT_STATUS_LABEL'] = str_replace('\n','', sprintf(EMAIL_TEXT_STATUS_LABEL, $orders_status_array[$status] ));
       $html_msg['EMAIL_TEXT_NEW_STATUS'] = $orders_status_array[$status];
@@ -166,25 +168,80 @@
 
         zen_redirect(zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('oID', 'action')), 'NONSSL'));
         break;
-    }
-  }
+      case 'delete_cvv':
+        $delete_cvv = $db->Execute("update " . TABLE_ORDERS . " set cc_cvv = '" . TEXT_DELETE_CVV_REPLACEMENT . "' where orders_id = '" . (int)$_GET['oID'] . "'");
+        zen_redirect(zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('action')) . 'action=edit', 'NONSSL'));
+        break;
+      case 'mask_cc':
+        $result  = $db->Execute("select cc_number from " . TABLE_ORDERS . " where orders_id = '" . (int)$_GET['oID'] . "'");
+        $old_num = $result->fields['cc_number'];
+        $new_num = substr($old_num, 0, 6) . str_repeat('*', (strlen($old_num) - 6)) . substr($old_num, -4);
+        $mask_cc = $db->Execute("update " . TABLE_ORDERS . " set cc_number = '" . $new_num . "' where orders_id = '" . (int)$_GET['oID'] . "'");
+        zen_redirect(zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('action')) . 'action=edit', 'NONSSL'));
+        break;
 
-  if (($action == 'edit') && isset($_GET['oID'])) {
-    $oID = zen_db_prepare_input($_GET['oID']);
-
-    $orders = $db->Execute("select orders_id from " . TABLE_ORDERS . "
-                            where orders_id = '" . (int)$oID . "'");
-
-    $order_exists = true;
-    if ($orders->RecordCount() <= 0) {
-      $order_exists = false;
-      $messageStack->add(sprintf(ERROR_ORDER_DOES_NOT_EXIST, $oID), 'error');
+      case 'doRefund':
+        $order = new order($oID);
+        if ($order->info['payment_module_code']) {
+          if (file_exists(DIR_FS_CATALOG_MODULES . 'payment/' . $order->info['payment_module_code'] . '.php')) {
+            require_once(DIR_FS_CATALOG_MODULES . 'payment/' . $order->info['payment_module_code'] . '.php');
+            require_once(DIR_FS_CATALOG_LANGUAGES . $_SESSION['language'] . '/modules/payment/' . $order->info['payment_module_code'] . '.php');
+            $module = new $order->info['payment_module_code'];
+            if (method_exists($module, '_doRefund')) {
+              $module->_doRefund($oID);
+            }
+          }
+        }
+        zen_redirect(zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('action')) . 'action=edit', 'NONSSL'));
+        break;
+      case 'doAuth':
+        $order = new order($oID);
+        if ($order->info['payment_module_code']) {
+          if (file_exists(DIR_FS_CATALOG_MODULES . 'payment/' . $order->info['payment_module_code'] . '.php')) {
+            require_once(DIR_FS_CATALOG_MODULES . 'payment/' . $order->info['payment_module_code'] . '.php');
+            require_once(DIR_FS_CATALOG_LANGUAGES . $_SESSION['language'] . '/modules/payment/' . $order->info['payment_module_code'] . '.php');
+            $module = new $order->info['payment_module_code'];
+            if (method_exists($module, '_doAuth')) {
+              $module->_doAuth($oID, $order->info['total'], $order->info['currency']);
+            }
+          }
+        }
+        zen_redirect(zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('action')) . 'action=edit', 'NONSSL'));
+        break;
+      case 'doCapture':
+        $order = new order($oID);
+        if ($order->info['payment_module_code']) {
+          if (file_exists(DIR_FS_CATALOG_MODULES . 'payment/' . $order->info['payment_module_code'] . '.php')) {
+            require_once(DIR_FS_CATALOG_MODULES . 'payment/' . $order->info['payment_module_code'] . '.php');
+            require_once(DIR_FS_CATALOG_LANGUAGES . $_SESSION['language'] . '/modules/payment/' . $order->info['payment_module_code'] . '.php');
+            $module = new $order->info['payment_module_code'];
+            if (method_exists($module, '_doCapt')) {
+              $module->_doCapt($oID, 'Complete', $order->info['total'], $order->info['currency']);
+            }
+          }
+        }
+        zen_redirect(zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('action')) . 'action=edit', 'NONSSL'));
+        break;
+      case 'doVoid':
+        $order = new order($oID);
+        if ($order->info['payment_module_code']) {
+          if (file_exists(DIR_FS_CATALOG_MODULES . 'payment/' . $order->info['payment_module_code'] . '.php')) {
+            require_once(DIR_FS_CATALOG_MODULES . 'payment/' . $order->info['payment_module_code'] . '.php');
+            require_once(DIR_FS_CATALOG_LANGUAGES . $_SESSION['language'] . '/modules/payment/' . $order->info['payment_module_code'] . '.php');
+            $module = new $order->info['payment_module_code'];
+            if (method_exists($module, '_doVoid')) {
+              $module->_doVoid($oID);
+            }
+          }
+        }
+        zen_redirect(zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('action')) . 'action=edit', 'NONSSL'));
+        break;
     }
   }
   //MaxMind Start
-  require(DIR_WS_INCLUDES . 'geoip.inc');
-  $gi = geoip_open(DIR_WS_INCLUDES . 'GeoIP.dat',GEOIP_STANDARD);
-  
+  require(DIR_FS_CATALOG_MODULES . 'maxmind/geoip.inc');
+  $gi = geoip_open(DIR_FS_CATALOG_MODULES . 'maxmind/GeoIP.dat',GEOIP_STANDARD);
+
   if ($_GET['maxmind'] == 'delete')
   { 
     $db->Execute("DELETE FROM " . TABLE_ORDERS_MAXMIND . " where order_id = '" . $oID . "'");
@@ -192,7 +249,6 @@
   }
   //MaxMind End
 
-  include(DIR_WS_CLASSES . 'order.php');
 ?>
 <!doctype html public "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html <?php echo HTML_PARAMS; ?>>
@@ -200,6 +256,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=<?php echo CHARSET; ?>">
 <title><?php echo TITLE; ?></title>
 <link rel="stylesheet" type="text/css" href="includes/stylesheet.css">
+<link rel="stylesheet" type="text/css" media="print" href="includes/stylesheet_print.css">
 <link rel="stylesheet" type="text/css" href="includes/cssjsmenuhover.css" media="all" id="hoverJS">
 <script language="javascript" src="includes/menu.js"></script>
 <script language="javascript" src="includes/general.js"></script>
@@ -216,14 +273,20 @@
   }
   // -->
 </script>
+<script language="javascript" type="text/javascript"><!--
+function couponpopupWindow(url) {
+  window.open(url,'popupWindow','toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes,copyhistory=no,width=450,height=280,screenX=150,screenY=150,top=150,left=150')
+}
+//--></script>
 </head>
 <body onLoad="init()">
 <!-- header //-->
+<div class="header-area">
 <?php
   require(DIR_WS_INCLUDES . 'header.php');
 ?>
+</div>
 <!-- header_eof //-->
-
 <!-- body //-->
 <table border="0" width="100%" cellspacing="2" cellpadding="2">
   <tr>
@@ -232,31 +295,33 @@
 <?php if (empty($action)) { ?>
 <!-- search -->
     <td width="100%" valign="top"><table border="0" width="100%" cellspacing="0" cellpadding="2">
-        <tr>
-          <td><table border="0" width="100%" cellspacing="0" cellpadding="0">
-              <tr><?php echo zen_draw_form('search', FILENAME_MAXMIND_ORDERS, '', 'get', '', true); ?>
-                <td class="pageHeading" align="right"><?php echo zen_draw_separator('pixel_trans.gif', 1, HEADING_IMAGE_HEIGHT); ?></td>
-                <td colspan="2" class="smallText" align="right"><?php
+      <tr>
+        <td><table border="0" width="100%" cellspacing="0" cellpadding="0">
+         <tr><?php echo zen_draw_form('search', FILENAME_MAXMIND_ORDERS, '', 'get', '', true); ?>
+            <td class="pageHeading" align="right"><?php echo zen_draw_separator('pixel_trans.gif', 1, HEADING_IMAGE_HEIGHT); ?></td>
+            <td colspan="2" class="smallText" align="right">
+<?php
 // show reset search
   if ((isset($_GET['search']) && zen_not_null($_GET['search'])) or $_GET['cID'] !='') {
     echo '<a href="' . zen_href_link(FILENAME_MAXMIND_ORDERS, '', 'NONSSL') . '">' . zen_image_button('button_reset.gif', IMAGE_RESET) . '</a><br />';
   }
 ?>
-                  <?php
-  echo HEADING_TITLE_SEARCH_DETAIL . ' ' . zen_draw_input_field('search');
+<?php
+  echo HEADING_TITLE_SEARCH_DETAIL . ' ' . zen_draw_input_field('search') . zen_hide_session_id();
   if (isset($_GET['search']) && zen_not_null($_GET['search'])) {
     $keywords = zen_db_input(zen_db_prepare_input($_GET['search']));
     echo '<br/ >' . TEXT_INFO_SEARCH_DETAIL_FILTER . $keywords;
   }
 ?>
-                </td>
-                </form>
-              </tr>
-            </table></td>
-        </tr>
-        <!-- search -->
-        <?php } ?>
-        <?php
+            </td>
+          </form></tr>
+        </table></td>
+      </tr>
+<!-- search -->
+<?php } ?>
+
+
+<?php
   if (($action == 'edit') && ($order_exists == true)) {
     $order = new order($oID);
     if ($order->info['payment_module_code']) {
@@ -268,135 +333,167 @@
       }
     }
 ?>
-        <tr>
-          <td width="100%"><table border="0" width="100%" cellspacing="0" cellpadding="0">
+<?php
+  //MaxMind Start
+  //Split IP Address - Why these are in the same field bewilders me.
+  $full_order_ip = $order->info['ip_address'];
+  $partial_order_ip = explode(' - ', $full_order_ip);
+  //Grab Bin Information
+  $bin_info_query = "select cc_bin_name, cc_bin_phone from " . TABLE_ORDERS . " where orders_id = '" . $oID . "'";
+  $bin_info = $db->Execute($bin_info_query);
+  
+  $maxmind_license = $db->Execute("select configuration_value FROM " . TABLE_CONFIGURATION . " WHERE configuration_key = 'MAXMIND_LICENSE'");
+  $maxmind_key = $maxmind_license->fields['configuration_value'];
+  //MaxMind End
+ ?>
+      <tr>
+        <td width="100%"><table border="0" width="100%" cellspacing="0" cellpadding="0">
+          <tr>
+            <td class="pageHeading"><?php echo HEADING_TITLE; ?></td>
+            <td class="pageHeading" align="right"><?php echo zen_draw_separator('pixel_trans.gif', 1, HEADING_IMAGE_HEIGHT); ?></td>
+            <td class="pageHeading" align="right"><?php echo '<a href="javascript:history.back()">' . zen_image_button('button_back.gif', IMAGE_BACK) . '</a>'; ?></td>
+          </tr>
+        </table></td>
+      </tr>
+      <tr>
+        <td><table width="100%" border="0" cellspacing="0" cellpadding="2">
+          <tr>
+            <td colspan="3"><?php echo zen_draw_separator(); ?></td>
+          </tr>
+		  <tr>
+		   <td>
+</td>
+</tr>
+          <tr>
+            <td valign="top"><table width="100%" border="0" cellspacing="0" cellpadding="2">
               <tr>
-                <td class="pageHeading"><?php echo HEADING_TITLE; ?></td>
-                <td class="pageHeading" align="right"><?php echo zen_draw_separator('pixel_trans.gif', 1, HEADING_IMAGE_HEIGHT); ?></td>
-                <td class="pageHeading" align="right"><?php echo '<a href="' . zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('action','referer')) ) . '">' . zen_image_button('button_back.gif', IMAGE_BACK) . '</a>'; ?></td>
+                <td class="main" valign="top"><strong><?php echo ENTRY_CUSTOMER; ?></strong></td>
+                <td class="main"><?php echo zen_address_format($order->customer['format_id'], $order->customer, 1, '', '<br />'); ?></td>
               </tr>
-            </table></td>
-        </tr>
-        <tr>
-          <td><table width="100%" border="0" cellspacing="0" cellpadding="2">
-              <tr>
-                <td colspan="3"><?php echo zen_draw_separator(); ?></td>
-              </tr>
-              <tr>
-                <td valign="top"><table width="100%" border="0" cellspacing="0" cellpadding="2">
-                    <tr>
-                      <td class="main" valign="top"><strong><?php echo ENTRY_CUSTOMER; ?></strong></td>
-                      <td class="main"><?php echo zen_address_format($order->customer['format_id'], $order->customer, 1, '', '<br />'); ?></td>
-                    </tr>
-
               <tr>
 		<td class="main"><strong>&nbsp;</strong></td>
                 <td colspan="main"><a href="http://maps.google.com/maps?q=<?php echo $order->customer['street_address']; ?>, <?php echo $order->customer['city']; ?> <?php echo $order->customer['state']; ?>, <?php echo $order->customer['postcode']; ?>" target="map"><u>Map Customer Address</u></a></td>
               </tr>
-                    <tr>
-                      <td colspan="2"><?php echo zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
-                    </tr>
-                    <tr>
-                      <td class="main"><strong><?php echo ENTRY_TELEPHONE_NUMBER; ?></strong></td>
-                      <td class="main"><?php echo $order->customer['telephone']; ?></td>
-                    </tr>
-                    <tr>
-                      <td class="main"><strong><?php echo ENTRY_EMAIL_ADDRESS; ?></strong></td>
-                      <td class="main"><?php echo '<a href="mailto:' . $order->customer['email_address'] . '">' . $order->customer['email_address'] . '</a>'; ?></td>
-                    </tr>
-			  <?php if (zen_not_null($order->info['ip_address'])) { echo
-              '<tr>
-                <td class="main"><strong>' . TEXT_INFO_IP_ADDRESS . '</strong></td>
-                <td class="main"><a href="http://www.dnsstuff.com/tools/whois.ch?ip=' . $order->info['ip_address'] . '" target="new"><u>' .  $order->info['ip_address'] . '</u></a></td>
+              <tr>
+                <td colspan="2"><?php echo zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
               </tr>
-			  <tr>
-			    <td class="main"><strong>Country:</strong></td> 
-			    <td class="main">' . zen_image(DIR_WS_FLAGS . strtolower(geoip_country_code_by_addr($gi, $order->info['ip_address'])) . '.gif', geoip_country_name_by_addr($gi, $order->info['ip_address'])) . '&nbsp;' . geoip_country_name_by_addr($gi, $order->info['ip_address']) . '</td>
-			  </tr>' ;
-			  } ?>
-                  </table></td>
-                <td valign="top"><table width="100%" border="0" cellspacing="0" cellpadding="2">
-                    <tr>
-                      <td class="main" valign="top"><strong><?php echo ENTRY_SHIPPING_ADDRESS; ?></strong></td>
-                      <td class="main"><?php echo zen_address_format($order->delivery['format_id'], $order->delivery, 1, '', '<br />'); ?></td>
-                    </tr>
-			  <tr>
-			    <td class="main"><strong>&nbsp;</strong></td>
-                <td colspan="main"><a href="http://maps.google.com/maps?q=<?php echo $order->delivery['street_address']; ?>, <?php echo $order->delivery['city']; ?> <?php echo $order->delivery['state']; ?>, <?php echo $order->delivery['postcode']; ?>" target="map"><u>Map Shipping Address</u></a></td>
+              <tr>
+                <td class="main"><strong><?php echo ENTRY_TELEPHONE_NUMBER; ?></strong></td>
+                <td class="main"><?php echo $order->customer['telephone']; ?></td>
               </tr>
-                  </table></td>
-                <td valign="top"><table width="100%" border="0" cellspacing="0" cellpadding="2">
-                    <tr>
-                      <td class="main" valign="top"><strong><?php echo ENTRY_BILLING_ADDRESS; ?></strong></td>
-                      <td class="main"><?php echo zen_address_format($order->billing['format_id'], $order->billing, 1, '', '<br />'); ?></td>
-                    </tr>
+              <tr>
+                <td class="main"><strong><?php echo ENTRY_EMAIL_ADDRESS; ?></strong></td>
+                <td class="main"><?php echo '<a href="mailto:' . $order->customer['email_address'] . '">' . $order->customer['email_address'] . '</a>'; ?></td>
+              </tr>
+			  <?php 
+			  	if (zen_not_null($order->info['ip_address'])) { 
+					echo
+              		'<tr>
+                		<td class="main"><strong>' . TEXT_INFO_START_IP_ADDRESS . '</strong></td>
+                		<td class="main"><a href="http://www.dnsstuff.com/tools/whois.ch?ip=' . $partial_order_ip[0] . '" target="new"><u>' .  $partial_order_ip[0] . '</u></a></td>
+              		</tr>
+			  		<tr>
+			    		<td class="main"><strong></strong></td> 
+			    		<td class="main">' . zen_image(DIR_WS_FLAGS . strtolower(geoip_country_code_by_addr($gi, $partial_order_ip[0])) . '.gif', geoip_country_name_by_addr($gi, $partial_order_ip[0])) . '&nbsp;' . geoip_country_name_by_addr($gi, $partial_order_ip[0]) . '</td>
+			  		</tr>'; 
+			  	} 
+			  	if ($partial_order_ip[0] != $partial_order_ip[1]) {
+					echo
+					'<tr>
+                		<td class="main"><strong>' . TEXT_INFO_END_IP_ADDRESS . '</strong></td>
+                		<td class="main"><a href="http://www.dnsstuff.com/tools/whois.ch?ip=' . $partial_order_ip[1] . '" target="new"><u>' .  $partial_order_ip[1] . '</u></a></td>
+              		</tr>
+			  		<tr>
+			    		<td class="main"><strong></strong></td> 
+			    		<td class="main">' . zen_image(DIR_WS_FLAGS . strtolower(geoip_country_code_by_addr($gi, $partial_order_ip[1])) . '.gif', geoip_country_name_by_addr($gi, $partial_order_ip[1])) . '&nbsp;' . geoip_country_name_by_addr($gi, $partial_order_ip[1]) . '</td>
+					</tr>'; 
+				}
+			  ?>
+            </table></td>
+            <td valign="top"><table width="100%" border="0" cellspacing="0" cellpadding="2">
+              <tr>
+                <td class="main" valign="top"><strong><?php echo ENTRY_SHIPPING_ADDRESS; ?></strong></td>
+                <td class="main"><?php echo zen_address_format($order->delivery['format_id'], $order->delivery, 1, '', '<br />'); ?></td>
+              </tr>
+	      <tr>
+	       <td class="main"><strong>&nbsp;</strong></td>
+               <td colspan="main"><a href="http://maps.google.com/maps?q=<?php echo $order->delivery['street_address']; ?>, <?php echo $order->delivery['city']; ?> <?php echo $order->delivery['state']; ?>, <?php echo $order->delivery['postcode']; ?>" target="map"><u>Map Shipping Address</u></a></td>
+              </tr>
+            </table></td>
+            <td valign="top"><table width="100%" border="0" cellspacing="0" cellpadding="2">
+              <tr>
+                <td class="main" valign="top"><strong><?php echo ENTRY_BILLING_ADDRESS; ?></strong></td>
+                <td class="main"><?php echo zen_address_format($order->billing['format_id'], $order->billing, 1, '', '<br />'); ?></td>
+              </tr>
 			  <tr>
 			    <td class="main"><strong>&nbsp;</strong></td>
                 <td colspan="main"><a href="http://maps.google.com/maps?q=<?php echo $order->billing['street_address']; ?>, <?php echo $order->billing['city']; ?> <?php echo $order->billing['state']; ?>, <?php echo $order->billing['postcode']; ?>" target="map"><u>Map Billing Address</u></a></td>
               </tr>
-                  </table></td>
-              </tr>
             </table></td>
-        </tr>
-        <tr>
-          <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
-        </tr>
-        <tr>
+          </tr>
+        </table></td>
+      </tr>
+      <tr>
+        <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
+      </tr>
+      <tr>
           <td><table border="0" cellspacing="0" cellpadding="2">
 		      <tr>
-               <td class="main"><strong><?php echo ENTRY_ORDER_ID ?></strong></td>
+        <td class="main"><strong><?php echo ENTRY_ORDER_ID ?></strong></td>
 			   <td class="main"><?php echo $oID; ?></td>
               </tr>
-              <tr>
-                <td class="main"><strong><?php echo ENTRY_DATE_PURCHASED; ?></strong></td>
-                <td class="main"><?php echo zen_date_long($order->info['date_purchased']); ?></td>
-              </tr>
-              <tr>
-                <td class="main"><strong><?php echo ENTRY_PAYMENT_METHOD; ?></strong></td>
-                <td class="main"><?php echo $order->info['payment_method']; ?></td>
-              </tr>
-              <?php
+        <tr>
+           <td class="main"><strong><?php echo ENTRY_DATE_PURCHASED; ?></strong></td>
+           <td class="main"><?php echo zen_date_long($order->info['date_purchased']); ?></td>
+        </tr>
+        <tr>
+           <td class="main"><strong><?php echo ENTRY_PAYMENT_METHOD; ?></strong></td>
+           <td class="main"><?php echo $order->info['payment_method']; ?></td>
+        </tr>
+<?php
     if (zen_not_null($order->info['cc_type']) || zen_not_null($order->info['cc_owner']) || zen_not_null($order->info['cc_number'])) {
 ?>
-              <tr>
-                <td colspan="2"><?php echo zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
-              </tr>
-              <tr>
-                <td class="main"><?php echo ENTRY_CREDIT_CARD_TYPE; ?></td>
-                <td class="main"><?php echo $order->info['cc_type']; ?></td>
-              </tr>
-              <tr>
-                <td class="main"><?php echo ENTRY_CREDIT_CARD_OWNER; ?></td>
-                <td class="main"><?php echo $order->info['cc_owner']; ?></td>
-              </tr>
-              <tr>
-                <td class="main"><?php echo ENTRY_CREDIT_CARD_NUMBER; ?></td>
-                <td class="main"><?php echo $order->info['cc_number']; ?></td>
-              </tr>
-              <tr>
-                <td class="main"><?php echo ENTRY_CREDIT_CARD_CVV; ?></td>
-                <td class="main"><?php echo $order->info['cc_cvv']; ?></td>
-              </tr>
-              <tr>
-                <td class="main"><?php echo ENTRY_CREDIT_CARD_EXPIRES; ?></td>
-                <td class="main"><?php echo $order->info['cc_expires']; ?></td>
-              </tr>
-              <?php
+          <tr>
+            <td colspan="2"><?php echo zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
+          </tr>
+          <tr>
+            <td class="main"><?php echo ENTRY_CREDIT_CARD_TYPE; ?></td>
+            <td class="main"><?php echo $order->info['cc_type']; ?></td>
+          </tr>
+          <tr>
+            <td class="main"><?php echo ENTRY_CREDIT_CARD_OWNER; ?></td>
+            <td class="main"><?php echo $order->info['cc_owner']; ?></td>
+          </tr>
+          <tr>
+            <td class="main"><?php echo ENTRY_CREDIT_CARD_NUMBER; ?></td>
+            <td class="main"><?php echo $order->info['cc_number'] . (zen_not_null($order->info['cc_number']) && !strstr($order->info['cc_number'],'X') && !strstr($order->info['cc_number'],'********') ? '&nbsp;&nbsp;<a href="' . zen_href_link(FILENAME_MAXMIND_ORDERS, '&action=mask_cc&oID=' . $oID, 'NONSSL') . '" class="noprint">' . TEXT_MASK_CC_NUMBER . '</a>' : ''); ?><td>
+          </tr>
+          <tr>
+            <td class="main"><?php echo ENTRY_CREDIT_CARD_CVV; ?></td>
+            <td class="main"><?php echo $order->info['cc_cvv'] . (zen_not_null($order->info['cc_cvv']) && !strstr($order->info['cc_cvv'],TEXT_DELETE_CVV_REPLACEMENT) ? '&nbsp;&nbsp;<a href="' . zen_href_link(FILENAME_MAXMIND_ORDERS, '&action=delete_cvv&oID=' . $oID, 'NONSSL') . '" class="noprint">' . TEXT_DELETE_CVV_FROM_DATABASE . '</a>' : ''); ?><td>
+          </tr>
+          <tr>
+            <td class="main"><?php echo ENTRY_CREDIT_CARD_EXPIRES; ?></td>
+            <td class="main"><?php echo $order->info['cc_expires']; ?></td>
+          </tr>
+<?php
     }
 ?>
-            </table></td>
-        </tr>
-        <?php
+        </table></td>
+      </tr>
+<?php
       if (method_exists($module, 'admin_notification')) {
 ?>
-        <tr>
-          <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
-        </tr>
-        <tr> <?php echo $module->admin_notification($oID); ?> </tr>
-        <tr>
-          <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
-        </tr>
-        <?php
+      <tr>
+        <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
+      </tr>
+      <tr>
+        <?php echo $module->admin_notification($oID); ?>
+      </tr>
+      <tr>
+        <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
+      </tr>
+<?php
 }
 ?>
         <?php //MaxMind Start ?>
@@ -419,14 +516,15 @@ case 10: $max_comment = MAXMIND_10; break;
 }
 $max_error = $maxmind_query->fields['err'];
 switch ($max_error) {
+//Warning Errors
 case IP_NOT_FOUND: $max_easy_error = MAXMIND_IP_NOT_FOUND; break;
 case COUNTRY_NOT_FOUND: $max_easy_error = MAXMIND_COUNTRY_NOT_FOUND; break;
 case CITY_NOT_FOUND: $max_easy_error = MAXMIND_CITY_NOT_FOUND; break;
 case CITY_REQUIRED: $max_easy_error = MAXMIND_CITY_REQUIRED; break;
 case POSTAL_CODE_REQUIRED: $max_easy_error = MAXMIND_POSTAL_CODE_REQUIRED; break;
 case POSTAL_CODE_NOT_FOUND: $max_easy_error = MAXMIND_POSTAL_CODE_NOT_FOUND; break;
+//Fatal Errors
 case INVALID_LICENSE_KEY: $max_easy_error = MAXMIND_INVALID_LICENSE_KEY; break;
-case MAX_REQUESTS_PER_IP: $max_easy_error = MAXMIND_MAX_REQUESTS_PER_IP; break;
 case MAX_REQUESTS_PER_LICENSE: $max_easy_error = MAXMIND_MAX_REQUESTS_PER_LICENSE; break;
 case IP_REQUIRED: $max_easy_error = MAXMIND_IP_REQUIRED; break;
 case LICENSE_REQUIRED: $max_easy_error = MAXMIND_LICENSE_REQUIRED; break;
@@ -437,7 +535,7 @@ case MAX_REQUESTS_REACHED: $max_easy_error = MAXMIND_MAX_REQUESTS_REACHED; break
       </table>
 <table width="100%" cellpadding="2" cellspacing="0" border="0">
   <tr  class="dataTableHeadingRow">
-    <td colspan="7"><br /><?php echo '<b>' . MAXMIND_SCORE; ?>&nbsp;<?php if (zen_not_null($maxmind_query->fields['score'])) { echo $max_comment  . '</b>'; } ?></td>
+    <td colspan="7"><br /><?php echo '<b>' . MAXMIND_SCORE; ?>&nbsp;<?php if (zen_not_null($maxmind_query->fields['score'])) { echo $maxmind_query->fields['score'] . $max_comment  . '</b>'; } ?></td>
   </tr>
 </table>
 <table width="100%" cellpadding="2" cellspacing="0" border="0">
@@ -449,66 +547,66 @@ case MAX_REQUESTS_REACHED: $max_easy_error = MAXMIND_MAX_REQUESTS_REACHED; break
 </table>
 <table width="100%" cellpadding="2" cellspacing="0" border="0">
   <tr>
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_COUNTRY; ?></td>
-    <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['country_match'] == 'No') echo '<b><font color="#FF0000">' . $maxmind_query->fields['country_match'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['country_match'] . '</font></b>'; ?></td>
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_BIN_MATCH; ?></td>
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_CODE; ?> / <?php echo MAXMIND_COUNTRY; ?></td>
+    <td width="18%" class="dataTableContent"><?php echo '<b>' . $maxmind_query->fields['country_code'] . '</b>'; ?> / <?php if ($maxmind_query->fields['country_match'] == 'No') echo '<b><font color="#FF0000">' . $maxmind_query->fields['country_match'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['country_match'] . '</font></b>'; ?></td>
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_CARDER_EMAIL; ?></td>
+    <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['carder_email'] == 'Yes') echo '<b><font color="#FF0000">' . $maxmind_query->fields['carder_email'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['carder_email'] . '</font></b>'; ?></td>
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_BIN_COUNTRY_MATCH; ?></td>
     <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['bin_match'] == 'No') echo '<b><font color="#FF0000">' . $maxmind_query->fields['bin_match'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['bin_match'] . '</font></b>'; ?></td>
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_IP_ISP; ?></td>
-    <td width="18%" class="dataTableContent"><?php echo '<b>' . $maxmind_query->fields['ip_isp'] . '</b>'; ?></td>
   </tr>
   <tr class="dataTableRow">
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_CODE; ?></td>
-    <td width="18%" class="dataTableContent"><?php echo '<b>' . $maxmind_query->fields['country_code'] . '</b>'; ?></td>
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_BIN_COUNTRY; ?></td>
-    <td width="18%" class="dataTableContent"><?php echo '<b>' . $maxmind_query->fields['bin_country'] . '</b>'; ?></td>
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_IP_ISP_ORG; ?></td>
-    <td width="18%" class="dataTableContent"><?php echo '<b>' . $maxmind_query->fields['ip_org'] . '</b>'; ?></td>
-  </tr>
-  <tr>
     <td width="14%" class="dataTableContent"><?php echo MAXMIND_HI_RISK; ?></td>
     <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['hi_risk'] == 'Yes') echo '<b><font color="#FF0000">' . $maxmind_query->fields['hi_risk'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['hi_risk'] . '</font></b>'; ?></td>
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_BIN_NAME; ?></td>
-    <td width="18%" class="dataTableContent"><?php echo '<b>' . $maxmind_query->fields['bin_name'] . '</b>'; ?></td>
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_ANONYMOUS; ?></td>
-    <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['anonymous_proxy'] == 'Yes') echo '<b><font color="#FF0000">' . $maxmind_query->fields['anonymous_proxy'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['anonymous_proxy'] . '</font></b>'; ?></td>
-  </tr>
-  <tr class="dataTableRow">
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_DISTANCE; ?></td>
-    <td width="18%" class="dataTableContent"><?php echo '<b>' . $maxmind_query->fields['distance'] . '</b>'; ?></td>
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_CITY_POSTAL_MATCH; ?></td>
-    <td width="18%" class="dataTableContent">	<?php if ($maxmind_query->fields['city_postal_match'] == 'No') echo '<b><font color="#FF0000">' . $maxmind_query->fields['city_postal_match'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['city_postal_match'] . '</font></b>'; ?></td>
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_PROXY_SCORE; ?></td>
-    <td width="18%" class="dataTableContent"><?php echo '<b>' . $maxmind_query->fields['proxy_score'] . '</b>'; ?></td>
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_HIGH_RISK_USERNAME; ?> / <?php echo MAXMIND_HIGH_RISK_PASSWORD; ?></td>
+    <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['high_risk_username'] == 'Yes') echo '<b><font color="#FF0000">' . $maxmind_query->fields['high_risk_username'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['high_risk_username'] . '</font></b>'; ?> / <?php if ($maxmind_query->fields['high_risk_password'] == 'Yes') echo '<b><font color="#FF0000">' . $maxmind_query->fields['high_risk_password'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['high_risk_password'] . '</font></b>'; ?></td>
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_BIN_NAME_MATCH; ?></td>
+    <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['bin_name_match'] == 'No') echo '<b><font color="#FF0000">' . $maxmind_query->fields['bin_name_match'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['bin_name_match'] . '</font></b>'; ?></td>
   </tr>
   <tr>
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_DISTANCE; ?></td>
+    <td width="18%" class="dataTableContent"><?php echo '<b>' . $maxmind_query->fields['distance'] . '</b>'; ?></td>
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_FREE_EMAIL; ?></td>
+    <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['free_mail'] == 'Yes') echo '<b><font color="#FF0000">' . $maxmind_query->fields['free_mail'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['free_mail'] . '</font></b>'; ?></td>
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_BIN_PHONE_MATCH; ?></td>
+    <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['bin_phone_match'] == 'No') echo '<b><font color="#FF0000">' . $maxmind_query->fields['bin_phone_match'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['bin_phone_match'] . '</font></b>'; ?></td>
+  </tr>
+  <tr class="dataTableRow">
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_IP_ISP; ?></td>
+    <td width="18%" class="dataTableContent"><?php echo '<b>' . $maxmind_query->fields['ip_isp'] . '</b>'; ?></td>
     <td width="14%" class="dataTableContent"><?php echo MAXMIND_CUST_PHONE; ?></td>
     <td width="18%" class="dataTableContent"><a href="http://www.whitepages.com/search/Reverse_Phone?phone=<?php echo $order->customer['telephone']; ?>" target="_blank">
       <?php if ($maxmind_query->fields['cust_phone'] == 'No') echo '<b><u><font color="#FF0000">' . $maxmind_query->fields['cust_phone'] . '</font></u></b>'; else echo '<b><u><font color="#00CC00">' . $maxmind_query->fields['cust_phone'] . '</font></u></b>'; ?></td>
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_SHIP_CITY_POSTAL_MATCH; ?></td>
-    <td width="18%" class="dataTableContent">		<?php if ($maxmind_query->fields['ship_city_postal_match'] == 'No') echo '<b><font color="#FF0000">' . $maxmind_query->fields['ship_city_postal_match'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['ship_city_postal_match'] . '</font></b>'; ?></td>
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_SPAM; ?></td>
-    <td width="18%" class="dataTableContent"><?php echo '<b>' . $maxmind_query->fields['spam_score'] . '</b>'; ?></td>
-  </tr>
-  <tr class="dataTableRow">
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_ERR; ?></td>
-    <td width="18%" class="dataTableContent"><?php echo '<b><font color="#FF0000">' . $max_easy_error . '</font></b>'; ?></td>
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_SHIP_FORWARD; ?></td>
-    <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['ship_forward'] == 'Yes') echo '<b><font color="#FF0000">' . $maxmind_query->fields['ship_forward'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['ship_forward'] . '</font></b>'; ?></td>
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_FREE_EMAIL; ?></td>
-    <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['free_mail'] == 'Yes') echo '<b><font color="#FF0000">' . $maxmind_query->fields['free_mail'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['free_mail'] . '</font></b>'; ?></td>
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_REPORT; ?></td>
+    <td width="18%" class="dataTableContent"><a href="http://www.maxmind.com/app/is_trans_proxy_http?l=<?php echo $maxmind_key . '&ipaddr=' . $partial_order_ip[0]; ?>&fraud_score=1&rId=k3live" target="_blank"><img src="images/icon_status_green.gif" border="0" alt="Report Fraud Unlikely"></a> | <a href="http://www.maxmind.com/app/is_trans_proxy_http?l=<?php echo $maxmind_key . '&ipaddr=' . $partial_order_ip[0]; ?>&fraud_score=3&rId=k3live" target="_blank"><img src="images/icon_status_yellow.gif" border="0" alt="Report Fraud Likely"></a> | <a href="http://www.maxmind.com/app/is_trans_proxy_http?l=<?php echo $maxmind_key . '&ipaddr=' . $partial_order_ip[0]; ?>&fraud_score=5&rId=k3live" target="_blank"><img src="images/icon_status_red.gif" border="0" alt="Report Fraud Definate"></a></td>
   </tr>
   <tr>
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_IP_ISP_ORG; ?></td>
+    <td width="18%" class="dataTableContent"><?php echo '<b>' . $maxmind_query->fields['ip_org'] . '</b>'; ?></td>
+	<td width="14%" class="dataTableContent"><?php echo MAXMIND_SHIP_FORWARD; ?></td>
+    <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['ship_forward'] == 'Yes') echo '<b><font color="#FF0000">' . $maxmind_query->fields['ship_forward'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['ship_forward'] . '</font></b>'; ?></td>
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_ID; ?></td>
+    <td width="18%" class="dataTableContent"><a href="http://www.maxmind.com/app/ccfd_log_view_detail?mmid=<?php echo $maxmind_query->fields['maxmind_id']; ?>&rId=k3live" target="_blank"><?php echo '<b><u>' . $maxmind_query->fields['maxmind_id'] . '</u></b>'; ?></a></td>
+  </tr>
+  <tr class="dataTableRow">
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_PROXY_SCORE; ?></td>
+    <td width="18%" class="dataTableContent"><?php echo '<b>' . $maxmind_query->fields['proxy_score'] . '</b>'; ?></td>
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_CITY_POSTAL_MATCH; ?></td>
+    <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['city_postal_match'] == 'No') echo '<b><font color="#FF0000">' . $maxmind_query->fields['city_postal_match'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['city_postal_match'] . '</font></b>'; ?></td>
     <td width="14%" class="dataTableContent"><?php echo MAXMIND_QUERIES_REMAINING; ?></td>
     <td width="18%" class="dataTableContent"><?php echo '<b>' . $maxmind_query->fields['queries_remaining'] . '</b>'; ?></td>
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_ID; ?></td>
-    <td width="18%" class="dataTableContent"><?php echo '<b>' . $maxmind_query->fields['maxmind_id'] . '</b>'; ?></td>
-    <td width="14%" class="dataTableContent"><?php echo MAXMIND_CARDER_EMAIL; ?></td>
-    <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['carder_email'] == 'Yes') echo '<b><font color="#FF0000">' . $maxmind_query->fields['carder_email'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['carder_email'] . '</font></b>'; ?></td>
+  </tr>
+  <tr>
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_ANONYMOUS_PROXY; ?></td>
+    <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['anonymous_proxy'] == 'Yes') echo '<b><font color="#FF0000">' . $maxmind_query->fields['anonymous_proxy'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['anonymous_proxy'] . '</font></b>'; ?></td>
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_SHIP_CITY_POSTAL_MATCH; ?></td>
+    <td width="18%" class="dataTableContent"><?php if ($maxmind_query->fields['ship_city_postal_match'] == 'No') echo '<b><font color="#FF0000">' . $maxmind_query->fields['ship_city_postal_match'] . '</font></b>'; else echo '<b><font color="#00CC00">' . $maxmind_query->fields['ship_city_postal_match'] . '</font></b>'; ?></td>
+    <td width="14%" class="dataTableContent"><?php echo MAXMIND_ERR; ?></td>
+    <td width="18%" class="dataTableContent"><?php echo '<b><font color="#FF0000">' . $max_easy_error . '</font></b>'; ?></td>
   </tr>
 </table>
 <table width="100%" cellpadding="2" cellspacing="0" border="0">
  <tr class="dataTableHeadingRow">
-  <td><?php echo MAXMIND_PREMIUM; ?></td>
+  <td><?php echo MAXMIND_STANDARD; ?></td>
  </tr>
 </table>
 <table width="100%" cellpadding="2" cellspacing="0" border="0">
@@ -520,24 +618,41 @@ case MAX_REQUESTS_REACHED: $max_easy_error = MAXMIND_MAX_REQUESTS_REACHED; break
   </tr>
 </table>
 <table width="100%" cellpadding="2" cellspacing="0" border="0">
+  <tr class="dataTableHeadingRow">
+    <td><?php echo MAXMIND_PREMIUM; ?></td>
+  </tr>
+</table>
+<table width="100%" border="0" cellpadding="2" cellspacing="0">
+  <tr>
+    <td width="34%" class="dataTableContent"><?php echo MAXMIND_BIN_NAME_INPUT; ?> <?php echo $bin_info->fields['cc_bin_name']; ?></td>
+    <td width="33%" class="dataTableContent"><?php echo MAXMIND_BIN_PHONE_INPUT; ?> <?php echo $bin_info->fields['cc_bin_phone']; ?></td>
+    <td width="33%" class="dataTableContent"></td>
+  </tr>
+  <tr class="dataTableRow">
+    <td width="34%" class="dataTableContent"><?php echo MAXMIND_BIN_NAME_OUTPUT; ?><?php echo $maxmind_query->fields['bin_name']; ?></td>
+    <td width="33%" class="dataTableContent"><?php echo MAXMIND_BIN_PHONE_OUTPUT; ?><?php echo $maxmind_query->fields['bin_phone']; ?></td>
+    <td width="33%" class="dataTableContent"><?php echo MAXMIND_BIN_COUNTRY_OUTPUT; ?><?php echo $maxmind_query->fields['bin_country']; ?></td>
+  </tr>
+</table>
+<table width="100%" cellpadding="2" cellspacing="0" border="0">
   <tr>
     <td colspan="4"><?php echo zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
   </tr>
 </table>
       <table width="100%" cellpadding="2" cellspacing="0" border="0">
         <?php //MaxMind End ?>
-        <tr>
-          <td><table border="0" width="100%" cellspacing="0" cellpadding="2">
-              <tr class="dataTableHeadingRow">
-                <td class="dataTableHeadingContent" colspan="2"><?php echo TABLE_HEADING_PRODUCTS; ?></td>
-                <td class="dataTableHeadingContent"><?php echo TABLE_HEADING_PRODUCTS_MODEL; ?></td>
-                <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_TAX; ?></td>
-                <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_PRICE_EXCLUDING_TAX; ?></td>
-                <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_PRICE_INCLUDING_TAX; ?></td>
-                <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_TOTAL_EXCLUDING_TAX; ?></td>
-                <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_TOTAL_INCLUDING_TAX; ?></td>
-              </tr>
-              <?php
+      <tr>
+        <td><table border="0" width="100%" cellspacing="0" cellpadding="2">
+          <tr class="dataTableHeadingRow">
+            <td class="dataTableHeadingContent" colspan="2"><?php echo TABLE_HEADING_PRODUCTS; ?></td>
+            <td class="dataTableHeadingContent"><?php echo TABLE_HEADING_PRODUCTS_MODEL; ?></td>
+            <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_TAX; ?></td>
+            <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_PRICE_EXCLUDING_TAX; ?></td>
+            <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_PRICE_INCLUDING_TAX; ?></td>
+            <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_TOTAL_EXCLUDING_TAX; ?></td>
+            <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_TOTAL_INCLUDING_TAX; ?></td>
+          </tr>
+<?php
     for ($i=0, $n=sizeof($order->products); $i<$n; $i++) {
       echo '          <tr class="dataTableRow">' . "\n" .
            '            <td class="dataTableContent" valign="top" align="right">' . $order->products[$i]['qty'] . '&nbsp;x</td>' . "\n" .
@@ -545,7 +660,7 @@ case MAX_REQUESTS_REACHED: $max_easy_error = MAXMIND_MAX_REQUESTS_REACHED; break
 
       if (isset($order->products[$i]['attributes']) && (sizeof($order->products[$i]['attributes']) > 0)) {
         for ($j = 0, $k = sizeof($order->products[$i]['attributes']); $j < $k; $j++) {
-          echo '<br /><nobr><small>&nbsp;<i> - ' . $order->products[$i]['attributes'][$j]['option'] . ': ' . $order->products[$i]['attributes'][$j]['value'];
+          echo '<br /><nobr><small>&nbsp;<i> - ' . $order->products[$i]['attributes'][$j]['option'] . ': ' . nl2br($order->products[$i]['attributes'][$j]['value']);
           if ($order->products[$i]['attributes'][$j]['price'] != '0') echo ' (' . $order->products[$i]['attributes'][$j]['prefix'] . $currencies->format($order->products[$i]['attributes'][$j]['price'] * $order->products[$i]['qty'], true, $order->info['currency'], $order->info['currency_value']) . ')';
           if ($order->products[$i]['attributes'][$j]['product_attribute_is_free'] == '1' and $order->products[$i]['product_is_free'] == '1') echo TEXT_INFO_ATTRIBUTE_FREE;
           echo '</i></small></nobr>';
@@ -574,9 +689,9 @@ case MAX_REQUESTS_REACHED: $max_easy_error = MAXMIND_MAX_REQUESTS_REACHED; break
       echo '          </tr>' . "\n";
     }
 ?>
-              <tr>
-                <td align="right" colspan="8"><table border="0" cellspacing="0" cellpadding="2">
-                    <?php
+          <tr>
+            <td align="right" colspan="8"><table border="0" cellspacing="0" cellpadding="2">
+<?php
     for ($i = 0, $n = sizeof($order->totals); $i < $n; $i++) {
       echo '              <tr>' . "\n" .
            '                <td align="right" class="'. str_replace('_', '-', $order->totals[$i]['class']) . '-Text">' . $order->totals[$i]['title'] . '</td>' . "\n" .
@@ -584,26 +699,28 @@ case MAX_REQUESTS_REACHED: $max_easy_error = MAXMIND_MAX_REQUESTS_REACHED; break
            '              </tr>' . "\n";
     }
 ?>
-                  </table></td>
-              </tr>
             </table></td>
-        </tr>
-        <?php
+          </tr>
+        </table></td>
+      </tr>
+
+<?php
   // show downloads
   require(DIR_WS_MODULES . 'orders_download.php');
 ?>
-        <tr>
-          <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
-        </tr>
-        <tr>
-          <td class="main"><table border="1" cellspacing="0" cellpadding="5">
-              <tr>
-                <td class="smallText" align="center"><strong><?php echo TABLE_HEADING_DATE_ADDED; ?></strong></td>
-                <td class="smallText" align="center"><strong><?php echo TABLE_HEADING_CUSTOMER_NOTIFIED; ?></strong></td>
-                <td class="smallText" align="center"><strong><?php echo TABLE_HEADING_STATUS; ?></strong></td>
-                <td class="smallText" align="center"><strong><?php echo TABLE_HEADING_COMMENTS; ?></strong></td>
-              </tr>
-              <?php
+
+      <tr>
+        <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
+      </tr>
+      <tr>
+        <td class="main"><table border="1" cellspacing="0" cellpadding="5">
+          <tr>
+            <td class="smallText" align="center"><strong><?php echo TABLE_HEADING_DATE_ADDED; ?></strong></td>
+            <td class="smallText" align="center"><strong><?php echo TABLE_HEADING_CUSTOMER_NOTIFIED; ?></strong></td>
+            <td class="smallText" align="center"><strong><?php echo TABLE_HEADING_STATUS; ?></strong></td>
+            <td class="smallText" align="center"><strong><?php echo TABLE_HEADING_COMMENTS; ?></strong></td>
+          </tr>
+<?php
     $orders_history = $db->Execute("select orders_status_id, date_added, customer_notified, comments
                                     from " . TABLE_ORDERS_STATUS_HISTORY . "
                                     where orders_id = '" . zen_db_input($oID) . "'
@@ -630,42 +747,40 @@ case MAX_REQUESTS_REACHED: $max_easy_error = MAXMIND_MAX_REQUESTS_REACHED; break
              '          </tr>' . "\n";
     }
 ?>
-            </table></td>
-        </tr>
-        <tr>
-          <td class="main"><br />
-            <strong><?php echo TABLE_HEADING_COMMENTS; ?></strong></td>
-        </tr>
-        <tr>
-          <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
-        </tr>
-        <tr><?php echo zen_draw_form('status', FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('action')) . 'action=update_order', 'post', '', true); ?>
-          <td class="main"><?php echo zen_draw_textarea_field('comments', 'soft', '60', '5'); ?></td>
-        </tr>
-        <tr>
-          <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
-        </tr>
-        <tr>
-          <td><table border="0" cellspacing="0" cellpadding="2">
+        </table></td>
+      </tr>
+      <tr>
+        <td class="main noprint"><br /><strong><?php echo TABLE_HEADING_COMMENTS; ?></strong></td>
+      </tr>
+      <tr>
+        <td class="noprint"><?php echo zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
+      </tr>
+      <tr><?php echo zen_draw_form('status', FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('action')) . 'action=update_order', 'post', '', true); ?>
+        <td class="main noprint"><?php echo zen_draw_textarea_field('comments', 'soft', '60', '5'); ?></td>
+      </tr>
+      <tr>
+        <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
+      </tr>
+      <tr>
+        <td><table border="0" cellspacing="0" cellpadding="2" class="noprint">
+          <tr>
+            <td><table border="0" cellspacing="0" cellpadding="2">
               <tr>
-                <td><table border="0" cellspacing="0" cellpadding="2">
-                    <tr>
-                      <td class="main"><strong><?php echo ENTRY_STATUS; ?></strong> <?php echo zen_draw_pull_down_menu('status', $orders_statuses, $order->info['orders_status']); ?></td>
-                    </tr>
-                    <tr>
-                      <td class="main"><strong><?php echo ENTRY_NOTIFY_CUSTOMER; ?></strong> <?php echo zen_draw_checkbox_field('notify', '', true); ?></td>
-                      <td class="main"><strong><?php echo ENTRY_NOTIFY_COMMENTS; ?></strong> <?php echo zen_draw_checkbox_field('notify_comments', '', true); ?></td>
-                    </tr>
-                  </table></td>
-                <td valign="top"><?php echo zen_image_submit('button_update.gif', IMAGE_UPDATE); ?></td>
+                <td class="main"><strong><?php echo ENTRY_STATUS; ?></strong> <?php echo zen_draw_pull_down_menu('status', $orders_statuses, $order->info['orders_status']); ?></td>
+              </tr>
+              <tr>
+                <td class="main"><strong><?php echo ENTRY_NOTIFY_CUSTOMER; ?></strong> <?php echo zen_draw_checkbox_field('notify', '', true); ?></td>
+                <td class="main"><strong><?php echo ENTRY_NOTIFY_COMMENTS; ?></strong> <?php echo zen_draw_checkbox_field('notify_comments', '', true); ?></td>
               </tr>
             </table></td>
-          </form>
-        </tr>
-        <tr>
-          <td colspan="2" align="right"><?php echo '<a href="' . zen_href_link(FILENAME_ORDERS_INVOICE, 'oID=' . $_GET['oID']) . '" TARGET="_blank">' . zen_image_button('button_invoice.gif', IMAGE_ORDERS_INVOICE) . '</a> <a href="' . zen_href_link(FILENAME_ORDERS_PACKINGSLIP, 'oID=' . $_GET['oID']) . '" TARGET="_blank">' . zen_image_button('button_packingslip.gif', IMAGE_ORDERS_PACKINGSLIP) . '</a> <a href="' . zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('action'))) . '">' . zen_image_button('button_back.gif', IMAGE_BACK) . '</a>'; ?></td>
-        </tr>
-        <?php
+            <td valign="top"><?php echo zen_image_submit('button_update.gif', IMAGE_UPDATE); ?></td>
+          </tr>
+        </table></td>
+      </form></tr>
+      <tr>
+        <td colspan="2" align="right" class="noprint"><?php echo '<a href="' . zen_href_link(FILENAME_ORDERS_INVOICE, 'oID=' . $_GET['oID']) . '" TARGET="_blank">' . zen_image_button('button_invoice.gif', IMAGE_ORDERS_INVOICE) . '</a> <a href="' . zen_href_link(FILENAME_ORDERS_PACKINGSLIP, 'oID=' . $_GET['oID']) . '" TARGET="_blank">' . zen_image_button('button_packingslip.gif', IMAGE_ORDERS_PACKINGSLIP) . '</a> <a href="' . zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('action'))) . '">' . zen_image_button('button_orders.gif', IMAGE_ORDERS) . '</a>'; ?></td>
+      </tr>
+<?php
 // check if order has open gv
         $gv_check = $db->Execute("select order_id, unique_id
                                   from " . TABLE_COUPON_GV_QUEUE ."
@@ -679,39 +794,39 @@ case MAX_REQUESTS_REACHED: $max_easy_error = MAXMIND_MAX_REQUESTS_REACHED; break
           echo '      </tr></table></td></tr>';
         }
 ?>
-        <?php
+<?php
   } else {
 ?>
-        <tr>
-          <td width="100%"><table border="0" width="100%" cellspacing="0" cellpadding="0">
-              <tr>
-                <td class="pageHeading"><?php echo HEADING_TITLE; ?></td>
-                <td class="pageHeading" align="right"><?php echo zen_draw_separator('pixel_trans.gif', 1, HEADING_IMAGE_HEIGHT); ?></td>
-                <td align="right"><table border="0" width="100%" cellspacing="0" cellpadding="0">
-                    <tr><?php echo zen_draw_form('orders', FILENAME_MAXMIND_ORDERS, '', 'get', '', true); ?>
-                      <td class="smallText" align="right"><?php echo HEADING_TITLE_SEARCH . ' ' . zen_draw_input_field('oID', '', 'size="12"') . zen_draw_hidden_field('action', 'edit'); ?></td>
-                      </form>
-                    </tr>
-                    <tr><?php echo zen_draw_form('status', FILENAME_MAXMIND_ORDERS, '', 'get', '', true); ?>
-                      <td class="smallText" align="right"><?php
+      <tr>
+        <td width="100%"><table border="0" width="100%" cellspacing="0" cellpadding="0">
+          <tr>
+            <td class="pageHeading"><?php echo HEADING_TITLE; ?></td>
+            <td class="pageHeading" align="right"><?php echo zen_draw_separator('pixel_trans.gif', 1, HEADING_IMAGE_HEIGHT); ?></td>
+            <td align="right"><table border="0" width="100%" cellspacing="0" cellpadding="0">
+              <tr><?php echo zen_draw_form('orders', FILENAME_MAXMIND_ORDERS, '', 'get', '', true); ?>
+                <td class="smallText" align="right"><?php echo HEADING_TITLE_SEARCH . ' ' . zen_draw_input_field('oID', '', 'size="12"') . zen_draw_hidden_field('action', 'edit') . zen_hide_session_id(); ?></td>
+              </form></tr>
+              <tr><?php echo zen_draw_form('status', FILENAME_MAXMIND_ORDERS, '', 'get', '', true); ?>
+                <td class="smallText" align="right">
+                  <?php
                     echo HEADING_TITLE_STATUS . ' ' . zen_draw_pull_down_menu('status', array_merge(array(array('id' => '', 'text' => TEXT_ALL_ORDERS)), $orders_statuses), $_GET['status'], 'onChange="this.form.submit();"');
                     echo zen_hide_session_id();
                   ?>
-                      </td>
-                      </form>
-                    </tr>
-                  </table></td>
-              </tr>
+                </td>
+              </form></tr>
             </table></td>
-        </tr>
-        <tr>
-          <td><table border="0" width="100%" cellspacing="0" cellpadding="0">
-              <tr>
-                <td class="smallText"><?php echo TEXT_LEGEND . ' ' . zen_image(DIR_WS_IMAGES . 'icon_status_red.gif', IMAGE_ICON_STATUS_RED, 10, 10) . ' ' . TEXT_BILLING_SHIPPING_MISMATCH; ?> </td>
-              <tr>
-                <td valign="top"><table border="0" width="100%" cellspacing="0" cellpadding="2">
-                    <tr class="dataTableHeadingRow">
-                      <?php
+          </tr>
+        </table></td>
+      </tr>
+      <tr>
+        <td><table border="0" width="100%" cellspacing="0" cellpadding="0">
+          <tr>
+            <td class="smallText"><?php echo TEXT_LEGEND . ' ' . zen_image(DIR_WS_IMAGES . 'icon_status_red.gif', TEXT_BILLING_SHIPPING_MISMATCH, 10, 10) . ' ' . TEXT_BILLING_SHIPPING_MISMATCH; ?>
+          </td>
+          <tr>
+            <td valign="top"><table border="0" width="100%" cellspacing="0" cellpadding="2">
+              <tr class="dataTableHeadingRow">
+<?php
 // Sort Listing
           switch ($_GET['list_order']) {
               case "id-asc":
@@ -739,16 +854,17 @@ case MAX_REQUESTS_REACHED: $max_easy_error = MAXMIND_MAX_REQUESTS_REACHED; break
               $disp_order = "c.customers_id DESC";
           }
 ?>
-                      <td class="dataTableHeadingContent" align="center"><?php echo TABLE_HEADING_ORDERS_ID; ?></td>
-                      <td class="dataTableHeadingContent" align="left" width="50"><?php echo TABLE_HEADING_PAYMENT_METHOD; ?></td>
-                      <td class="dataTableHeadingContent"><?php echo TABLE_HEADING_CUSTOMERS; ?></td>
-                      <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_ORDER_TOTAL; ?></td>
-                      <td class="dataTableHeadingContent" align="center"><?php echo TABLE_HEADING_DATE_PURCHASED; ?></td>
-                      <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_STATUS; ?></td>
-					  <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_MAXMIND; ?></td>
-                      <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_ACTION; ?>&nbsp;</td>
-                    </tr>
-                    <?php
+                <td class="dataTableHeadingContent" align="center"><?php echo TABLE_HEADING_ORDERS_ID; ?></td>
+                <td class="dataTableHeadingContent" align="left" width="50"><?php echo TABLE_HEADING_PAYMENT_METHOD; ?></td>
+                <td class="dataTableHeadingContent"><?php echo TABLE_HEADING_CUSTOMERS; ?></td>
+                <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_ORDER_TOTAL; ?></td>
+                <td class="dataTableHeadingContent" align="center"><?php echo TABLE_HEADING_DATE_PURCHASED; ?></td>
+                <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_STATUS; ?></td>
+				<td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_MAXMIND; ?></td>
+                <td class="dataTableHeadingContent" align="right"><?php echo TABLE_HEADING_ACTION; ?>&nbsp;</td>
+              </tr>
+
+<?php
 // create search filter
   $search = '';
   if (isset($_GET['search']) && zen_not_null($_GET['search'])) {
@@ -756,7 +872,7 @@ case MAX_REQUESTS_REACHED: $max_easy_error = MAXMIND_MAX_REQUESTS_REACHED; break
     $search = " and (o.customers_city like '%" . $keywords . "%' or o.customers_postcode like '%" . $keywords . "%' or o.date_purchased like '%" . $keywords . "%' or o.billing_name like '%" . $keywords . "%' or o.billing_company like '%" . $keywords . "%' or o.billing_street_address like '%" . $keywords . "%' or o.delivery_city like '%" . $keywords . "%' or o.delivery_postcode like '%" . $keywords . "%' or o.delivery_name like '%" . $keywords . "%' or o.delivery_company like '%" . $keywords . "%' or o.delivery_street_address like '%" . $keywords . "%' or o.billing_city like '%" . $keywords . "%' or o.billing_postcode like '%" . $keywords . "%' or o.customers_email_address like '%" . $keywords . "%' or o.customers_name like '%" . $keywords . "%' or o.customers_company like '%" . $keywords . "%' or o.customers_street_address  like '%" . $keywords . "%' or o.customers_telephone like '%" . $keywords . "%' or o.ip_address  like '%" . $keywords . "%')";
   }
 ?>
-                    <?php
+<?php
     $new_fields = ", o.customers_company, o.customers_email_address, o.customers_street_address, o.delivery_company, o.delivery_name, o.delivery_street_address, o.billing_company, o.billing_name, o.billing_street_address, o.payment_module_code, o.shipping_module_code, o.ip_address ";
     if (isset($_GET['cID'])) {
       $cID = zen_db_prepare_input($_GET['cID']);
@@ -803,10 +919,10 @@ if (($_GET['page'] == '' or $_GET['page'] <= 1) and $_GET['oID'] != '') {
 
       $show_difference = '';
       if (($orders->fields['delivery_name'] != $orders->fields['billing_name'] and $orders->fields['delivery_name'] != '')) {
-        $show_difference = zen_image(DIR_WS_IMAGES . 'icon_status_red.gif', IMAGE_ICON_STATUS_RED, 10, 10) . '&nbsp;';
+        $show_difference = zen_image(DIR_WS_IMAGES . 'icon_status_red.gif', TEXT_BILLING_SHIPPING_MISMATCH, 10, 10) . '&nbsp;';
       }
       if (($orders->fields['delivery_street_address'] != $orders->fields['billing_street_address'] and $orders->fields['delivery_street_address'] != '')) {
-        $show_difference = zen_image(DIR_WS_IMAGES . 'icon_status_red.gif', IMAGE_ICON_STATUS_RED, 10, 10) . '&nbsp;';
+        $show_difference = zen_image(DIR_WS_IMAGES . 'icon_status_red.gif', TEXT_BILLING_SHIPPING_MISMATCH, 10, 10) . '&nbsp;';
       }
       $show_payment_type = $orders->fields['payment_module_code'] . '<br />' . $orders->fields['shipping_module_code'];
 	  
@@ -826,46 +942,46 @@ case 9: $max_quick_img = $maxmind_quick_score->fields['score'] . '&nbsp;' . zen_
 case 10: $max_quick_img = $maxmind_quick_score->fields['score'] . '&nbsp;' . zen_image(DIR_WS_IMAGES . 'icon_status_red.gif', IMAGE_ICON_STATUS_RED, 10, 10); break;
 }
 ?>
-                    <td class="dataTableContent" align="right"><?php echo $show_difference . $orders->fields['orders_id']; ?></td>
-                      <td class="dataTableContent" align="left" width="50"><?php echo $show_payment_type; ?></td>
-                      <td class="dataTableContent"><?php echo '<a href="' . zen_href_link(FILENAME_CUSTOMERS, 'cID=' . $orders->fields['customers_id'], 'NONSSL') . '">' . zen_image(DIR_WS_ICONS . 'preview.gif', ICON_PREVIEW . ' ' . TABLE_HEADING_CUSTOMERS) . '</a>&nbsp;' . $orders->fields['customers_name'] . ($orders->fields['customers_company'] != '' ? '<br />' . $orders->fields['customers_company'] : ''); ?></td>
-                      <td class="dataTableContent" align="right"><?php echo strip_tags($orders->fields['order_total']); ?></td>
-                      <td class="dataTableContent" align="center"><?php echo zen_datetime_short($orders->fields['date_purchased']); ?></td>
-                      <td class="dataTableContent" align="right"><?php echo $orders->fields['orders_status_name']; ?></td>
-					  <td class="dataTableContent" align="right"><?php if (zen_not_null($maxmind_quick_score->fields['score'])) { echo $max_quick_img; } ?></td>
-                      <td class="dataTableContent" align="right"><?php if (isset($oInfo) && is_object($oInfo) && ($orders->fields['orders_id'] == $oInfo->orders_id)) { echo zen_image(DIR_WS_IMAGES . 'icon_arrow_right.gif', ''); } else { echo '<a href="' . zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('oID')) . 'oID=' . $orders->fields['orders_id'], 'NONSSL') . '">' . zen_image(DIR_WS_IMAGES . 'icon_info.gif', IMAGE_ICON_INFO) . '</a>'; } ?>
-                        &nbsp;</td>
-                    </tr>
-                    <?php
+                <td class="dataTableContent" align="right"><?php echo $show_difference . $orders->fields['orders_id']; ?></td>
+                <td class="dataTableContent" align="left" width="50"><?php echo $show_payment_type; ?></td>
+                <td class="dataTableContent"><?php echo '<a href="' . zen_href_link(FILENAME_CUSTOMERS, 'cID=' . $orders->fields['customers_id'], 'NONSSL') . '">' . zen_image(DIR_WS_ICONS . 'preview.gif', ICON_PREVIEW . ' ' . TABLE_HEADING_CUSTOMERS) . '</a>&nbsp;' . $orders->fields['customers_name'] . ($orders->fields['customers_company'] != '' ? '<br />' . $orders->fields['customers_company'] : ''); ?></td>
+                <td class="dataTableContent" align="right"><?php echo strip_tags($orders->fields['order_total']); ?></td>
+                <td class="dataTableContent" align="center"><?php echo zen_datetime_short($orders->fields['date_purchased']); ?></td>
+                <td class="dataTableContent" align="right"><?php echo $orders->fields['orders_status_name']; ?></td>
+				<td class="dataTableContent" align="right"><?php if (zen_not_null($maxmind_quick_score->fields['score'])) { echo $max_quick_img; } ?></td>
+                <td class="dataTableContent" align="right"><?php echo '<a href="' . zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('oID', 'action')) . 'oID=' . $orders->fields['orders_id'] . '&action=edit', 'NONSSL') . '">' . zen_image(DIR_WS_IMAGES . 'icon_edit.gif', ICON_EDIT) . '</a>'; ?><?php if (isset($oInfo) && is_object($oInfo) && ($orders->fields['orders_id'] == $oInfo->orders_id)) { echo zen_image(DIR_WS_IMAGES . 'icon_arrow_right.gif', ''); } else { echo '<a href="' . zen_href_link(FILENAME_MAXMIND_ORDERS, zen_get_all_get_params(array('oID')) . 'oID=' . $orders->fields['orders_id'], 'NONSSL') . '">' . zen_image(DIR_WS_IMAGES . 'icon_info.gif', IMAGE_ICON_INFO) . '</a>'; } ?>&nbsp;</td>
+              </tr>
+<?php
       $orders->MoveNext();
     }
 ?>
-                    <tr>
-                      <td colspan="5"><table border="0" width="100%" cellspacing="0" cellpadding="2">
-                          <tr>
-                            <td class="smallText" valign="top"><?php echo $orders_split->display_count($orders_query_numrows, MAX_DISPLAY_SEARCH_RESULTS_ORDERS, $_GET['page'], TEXT_DISPLAY_NUMBER_OF_ORDERS); ?></td>
-                            <td class="smallText" align="right"><?php echo $orders_split->display_links($orders_query_numrows, MAX_DISPLAY_SEARCH_RESULTS_ORDERS, MAX_DISPLAY_PAGE_LINKS, $_GET['page'], zen_get_all_get_params(array('page', 'oID', 'action'))); ?></td>
-                          </tr>
-                          <?php
+              <tr>
+                <td colspan="5"><table border="0" width="100%" cellspacing="0" cellpadding="2">
+                  <tr>
+                    <td class="smallText" valign="top"><?php echo $orders_split->display_count($orders_query_numrows, MAX_DISPLAY_SEARCH_RESULTS_ORDERS, $_GET['page'], TEXT_DISPLAY_NUMBER_OF_ORDERS); ?></td>
+                    <td class="smallText" align="right"><?php echo $orders_split->display_links($orders_query_numrows, MAX_DISPLAY_SEARCH_RESULTS_ORDERS, MAX_DISPLAY_PAGE_LINKS, $_GET['page'], zen_get_all_get_params(array('page', 'oID', 'action'))); ?></td>
+                  </tr>
+<?php
   if (isset($_GET['search']) && zen_not_null($_GET['search'])) {
 ?>
-                          <tr>
-                            <td class="smallText" align="right" colspan="2"><?php
+                  <tr>
+                    <td class="smallText" align="right" colspan="2">
+                      <?php
                         echo '<a href="' . zen_href_link(FILENAME_MAXMIND_ORDERS, '', 'NONSSL') . '">' . zen_image_button('button_reset.gif', IMAGE_RESET) . '</a>';
                         if (isset($_GET['search']) && zen_not_null($_GET['search'])) {
                           $keywords = zen_db_input(zen_db_prepare_input($_GET['search']));
                           echo '<br/ >' . TEXT_INFO_SEARCH_DETAIL_FILTER . $keywords;
                         }
                       ?>
-                            </td>
-                          </tr>
-                          <?php
+                    </td>
+                  </tr>
+<?php
   }
 ?>
-                        </table></td>
-                    </tr>
-                  </table></td>
-                <?php
+                </table></td>
+              </tr>
+            </table></td>
+<?php
   $heading = array();
   $contents = array();
 
@@ -917,7 +1033,7 @@ case 10: $max_quick_img = $maxmind_quick_score->fields['score'] . '&nbsp;' . zen
 
         if (sizeof($order->products[$i]['attributes']) > 0) {
           for ($j=0; $j<sizeof($order->products[$i]['attributes']); $j++) {
-            $contents[] = array('text' => '&nbsp;<i> - ' . $order->products[$i]['attributes'][$j]['option'] . ': ' . $order->products[$i]['attributes'][$j]['value'] . '</i></nobr>' );
+            $contents[] = array('text' => '&nbsp;<i> - ' . $order->products[$i]['attributes'][$j]['option'] . ': ' . nl2br($order->products[$i]['attributes'][$j]['value']) . '</i></nobr>' );
           }
         }
         if ($i > MAX_DISPLAY_RESULTS_ORDERS_DETAILS_LISTING and MAX_DISPLAY_RESULTS_ORDERS_DETAILS_LISTING != 0) {
@@ -941,24 +1057,24 @@ case 10: $max_quick_img = $maxmind_quick_score->fields['score'] . '&nbsp;' . zen
     echo '            </td>' . "\n";
   }
 ?>
-              </tr>
-            </table></td>
-        </tr>
-        <?php
+          </tr>
+        </table></td>
+      </tr>
+<?php
   }
 ?>
-      </table></td>
+    </table></td>
 <!-- body_text_eof //-->
   </tr>
 </table>
+<!-- body_eof //-->
 
-  <!-- body_eof //-->
-  
-  <!-- footer //-->
-<div align="center"><a href="http://www.maxmind.com/?rId=k3live" target="_blank"><img src="../images/maxmind_ccfd.gif" alt="MaxMind CCFD Protection" border="0"></a></div>
-  <?php require(DIR_WS_INCLUDES . 'footer.php'); ?>
-  <!-- footer_eof //-->
-  <br />
+<!-- footer //-->
+<div class="footer-area" align="center"><a href="http://www.maxmind.com/?rId=k3live" target="_blank"><img src="../images/maxmind_ccfd.gif" alt="MaxMind CCFD Protection" border="0"></a>
+<?php require(DIR_WS_INCLUDES . 'footer.php'); ?>
+</div>
+<!-- footer_eof //-->
+<br />
 </body>
 </html>
 <?php require(DIR_WS_INCLUDES . 'application_bottom.php'); ?>
