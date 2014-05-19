@@ -1,0 +1,78 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<title>Untitled Document</title>
+</head>
+
+<body>
+<p align="center"><font size="+2">MaxMind Credit Card Fraud Detection v1.0 for ZenCart 
+</font></p>
+<p align="left"><u><font size="+1">Overview</font></u><br />
+1. This has been tested on ZenCart 1.2.6d, your mileage on earlier versions may vary.<br />
+2. This addon will allow the store owner to query the MaxMind server to identify and place a risk score on transactions.<br />
+3. You MUST have an account with MaxMind to use this addon! You may get a test license with 1000 queries at:<br />
+<a href="http://www.maxmind.com/app/ccv2r_signup?rId=k3live">http://www.maxmind.com/app/ccv2r_signup</a></p>
+<p align="left">4. From MaxMind <a href="http://www.maxmind.com/app/ccv_overview?rId=k3live">website</a>:<br />
+Credit card fraud is a growing problem for online merchants. As a merchant,   you are liable for fraudulent credit card transactions. Fraud can hurt your   business in the following ways: lost revenue and cost of goods, wasted   productivity, and penalties such as <a href="http://www.maxmind.com/app/ccfd_landing?rId=k3live">chargebacks</a> and   higher interchange rates. </p>
+<p>Our industry-leading Credit Card Fraud Detection Service automatically flags   potentially fraudulent transactions so you can review the legitimacy of those   orders. Please read our <a href="http://www.maxmind.com/app/success_stories?rId=k3live">client success stories</a> and   see how we have helped protect their businesses against fraud. Or see how CCFD   can be used to reduce <a href="http://www.maxmind.com/app/other_fraud_protection?rId=k3live">other forms of online   fraud</a>.</p>
+<p>5. This is what you should see once installed: </p>
+<p align="left"><font size="+2"><img src="readme_files/orders.gif" width="824" height="257" /></font> <br />
+  <br />
+<font size="+2"><img src="readme_files/detailed_orders.gif" width="939" height="215" /></font></p>
+<p align="left"><u><font size="+1">License<br />
+</font></u>This code is licensed  under the terms of the GNU Public License(GPL).</p>
+<p align="left"><u><font size="+1">Warning</font></u><br />
+BACKUP your database and files BEFORE installation. Use this contribution at YOUR OWN RISK.</p>
+<p align="left"><u><font size="+1">Installation</font></u><br />
+With Zen Magic only one file needs to be replaced IF you want credit card orders to auto-process when the order is placed:<br />
+includes/modules/pages/checkout_process/header.php</p>
+<p align="left">If you use the default credit card module and do not store credit card numbers on the server (you e-mail the middle numbers), you will need to replace:<br />
+  includes/modules/payment/cc.php<br />
+(This needs to be done to change which numbers stay on the server and which get e-mailed to you, we need the first 6 numbers to pass on to MaxMind)</p>
+<p align="left">All other files are added and used with Zen Magic:<br />
+  admin/maxmind_orders.php<br />
+admin/maxmind_update.php<br />
+  admin/includes/GeoIP.dat<br />
+  admin/includes/geoip.inc<br />
+admin/includes/boxes/extra_boxes/maxmind_orders_customers_dhtml.php<br />
+admin/includes/extra_datafiles/maxmind_orders.php<br />
+admin/includes/languages/english/extra_definitions/maxmind_orders.php<br />
+images/maxmind_ccfd.gif<br />
+includes/extra_datafiles/maxmind_orders.php<br />
+includes/modules/maxmind/CreditCardFraudDetection.php<br />
+includes/modules/maxmind/HTTPBase.php<br />
+includes/modules/maxmind/maxmind.php<br />
+includes/modules/payment/cc.php ***Read note above, only needed if you e-mail the middle credit card numbers to yourself***<br />
+includes/modules/pages/checkout_process/header.php ***Read note above, only needed if you want to auto-process orders***</p>
+<p align="left">Once you have uploaded the required files you need to add the new database fields:<br />
+Go to Your Store -&gt; Admin -&gt; Tools -&gt; Install SQL Patches<br />
+  Browse and upload maxmind_orders.sql</p>
+<p align="left">Make sure you have your MaxMind License Key (available from <a href="http://www.maxmind.com/app/ccv2r_signup?rId=k3live">http://www.maxmind.com/app/ccv2r_signup</a>):<br />
+Go to Your Store -&gt; Admin -&gt; Configuration -&gt; My Store <br />
+Find MaxMind License Key and update it with your license key. </p>
+<p align="left"><u><font size="+1">Change Notes</font></u><br />
+  First Release</p>
+<p align="left"><u><font size="+1">Bug Reports</font></u><br />
+Please PM me on the ZenCart forum with any bug reports<br />
+<a href="http://www.zen-cart.com/modules/ipb/index.php?act=Msg&amp;CODE=04&amp;MID=339">Quick PM Link</a></p>
+<p align="left"><u><font size="+1">Support</font></u><br />
+Visit the <a href="http://www.zen-cart.com/modules/ipb/index.php?showtopic=35315">ZenCart forum board</a> to read the latest and get support.<br />
+  If you cannot find your answer there , <a href="http://www.zen-cart.com/modules/ipb/index.php?act=Msg&amp;CODE=04&amp;MID=339">PM me</a><br />
+</p>
+<p align="left"><u><font size="+1">FAQs</font></u><br />
+First Release (AKA not many)</p>
+<p align="left">Q. This contribution doesn't work!<br />
+A. It works for me :)</p>
+<p align="left">Q. Can you do it for me?<br />
+  A. I will help out as much as I can on the ZenCart forum board, beyond that if you PM me expect to hire me.</p>
+<p align="left">Q. How can I contribute to the author?<br />
+A. Please direct all contributions to the <a href="http://www.zen-cart.com/modules/freecontent/index.php?id=6">ZenCart Team</a></p>
+<p align="left">Q. Why is the readme in HTML?<br />
+  A. I like HTML, get over it :)</p>
+<p align="left">Last modified November 13th, 2005<br />
+  Kevin M. <br />
+  ses707
+</p>
+</body>
+</html>
