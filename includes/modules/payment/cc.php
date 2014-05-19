@@ -5,7 +5,7 @@
 // +----------------------------------------------------------------------+
 // | This source file is subject to version 2.0 of the GPL license.       |
 // +----------------------------------------------------------------------+
-// $Id: cc.php 1.2 2007-01-05 23:24:29Z ses707 $
+// $Id: cc.php 1.3 2007-08-15 06:03:24Z ses707 $
 //
 /**
  * Manual Credit Card payment module
@@ -44,7 +44,12 @@ class cc extends base {
     global $order;
 
     $this->code = 'cc';
-    $this->title = MODULE_PAYMENT_CC_TEXT_TITLE;
+    if (IS_ADMIN_FLAG === true) {
+      // Payment module title in Admin
+      $this->title = MODULE_PAYMENT_CC_TEXT_ADMIN_TITLE;
+    } else {
+      $this->title = MODULE_PAYMENT_CC_TEXT_CATALOG_TITLE;
+    }
     $this->description = MODULE_PAYMENT_CC_TEXT_DESCRIPTION;
     $this->sort_order = MODULE_PAYMENT_CC_SORT_ORDER;
     $this->enabled = ((MODULE_PAYMENT_CC_STATUS == 'True') ? true : false);
@@ -124,7 +129,7 @@ class cc extends base {
     global $order;
 
     for ($i=1; $i<13; $i++) {
-      $expires_month[] = array('id' => sprintf('%02d', $i), 'text' => strftime('%B',mktime(0,0,0,$i,1,2000)));
+      $expires_month[] = array('id' => sprintf('%02d', $i), 'text' => strftime('%B - (%m)',mktime(0,0,0,$i,1,2000)));
     }
 
     $today = getdate();
@@ -171,7 +176,7 @@ class cc extends base {
    *
    */
   function pre_confirmation_check() {
-    global $_POST, $messageStack;
+    global $messageStack;
     /**
      * Load the cc_validation class
      */
@@ -213,8 +218,6 @@ class cc extends base {
    * @return array
    */
   function confirmation() {
-    global $_POST;
-
     $confirmation = array('title' => $this->title . ': ' . $this->cc_card_type,
                           'fields' => array(array('title' => MODULE_PAYMENT_CC_TEXT_CREDIT_CARD_OWNER,
                           'field' => $_POST['cc_owner']),
@@ -232,6 +235,7 @@ class cc extends base {
       $confirmation['fields'][] = array('title' => MODULE_PAYMENT_CC_TEXT_CREDIT_CARD_BIN_NAME,
                                         'field' => $_POST['cc_bin_name']);
     }
+	
 	if (MODULE_PAYMENT_CC_COLLECT_BIN_PHONE == 'True')  {
       $confirmation['fields'][] = array('title' => MODULE_PAYMENT_CC_TEXT_CREDIT_CARD_BIN_PHONE,
                                         'field' => $_POST['cc_bin_phone']);
@@ -247,8 +251,6 @@ class cc extends base {
    * @return string
    */
   function process_button() {
-    global $_POST;
-
     $process_button_string = zen_draw_hidden_field('cc_owner', $_POST['cc_owner']) .
                              zen_draw_hidden_field('cc_expires', $_POST['cc_expires_month'] . $_POST['cc_expires_year']) .
                              zen_draw_hidden_field('cc_type', $this->cc_card_type) .
@@ -272,8 +274,7 @@ class cc extends base {
    *
    */
   function before_process() {
-    global $_POST, $order;
-
+    global $order;
     if (defined('MODULE_PAYMENT_CC_STORE_NUMBER') && MODULE_PAYMENT_CC_STORE_NUMBER == 'True') {
       $order->info['cc_number'] = $_POST['cc_number'];
     }
@@ -335,8 +336,6 @@ class cc extends base {
    * @return array
    */
   function get_error() {
-    global $_GET;
-
     $error = array('title' => MODULE_PAYMENT_CC_TEXT_ERROR,
                    'error' => stripslashes(urldecode($_GET['error'])));
 
@@ -380,7 +379,7 @@ class cc extends base {
    */
   function remove() {
     global $db;
-    $db->Execute("delete from " . TABLE_CONFIGURATION . " where configuration_key like 'MODULE_PAYMENT_CC_%'");
+    $db->Execute("delete from " . TABLE_CONFIGURATION . " where configuration_key like 'MODULE\_PAYMENT\_CC\_%'");
   }
   /**
    * Internal list of configuration keys used for configuration of the module

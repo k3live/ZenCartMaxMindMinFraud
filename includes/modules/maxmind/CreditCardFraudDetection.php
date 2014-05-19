@@ -2,10 +2,10 @@
 
 /* CreditCardFraudDetection.php
  *
- * Copyright (C) 2005 MaxMind LLC
+ * Copyright (C) 2008 MaxMind, Inc.
  *
  * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
+ * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
  *
@@ -14,7 +14,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public
+ * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
@@ -53,15 +53,18 @@ class CreditCardFraudDetection extends HTTPBase {
     $this->allowed_fields["sessionID"] = 1;
     $this->allowed_fields["usernameMD5"] = 1;
     $this->allowed_fields["passwordMD5"] = 1;
+    $this->allowed_fields["user_agent"] = 1;
+    $this->allowed_fields["accept_language"] = 1;
+    $this->allowed_fields["clientAPI"] = 1;
 
     $this->num_allowed_fields = count($this->allowed_fields);
 
     //set the url of the web service
     $this->url = "app/ccv2r";
     $this->check_field = "score";
-    $this->server = array("www.maxmind.com", "www2.maxmind.com");
+    $this->server = array("minfraud1.maxmind.com", "minfraud2.maxmind.com");
     $this->numservers = count($this->server);
-    $this->API_VERSION = 'PHP/1.43';
+    $this->API_VERSION = 'PHP/1.48';
   }
 
   function filter_field($key, $value) {

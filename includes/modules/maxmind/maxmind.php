@@ -5,7 +5,7 @@
 // +----------------------------------------------------------------------+
 // | This source file is subject to version 2.0 of the GPL license.       |
 // +----------------------------------------------------------------------+
-//  $Id: maxmind.php 1.2 2007-01-05 23:21:39Z ses707 $
+//  $Id: maxmind.php 1.3 2007-01-05 23:25:29Z ses707 $
 //
 
 $oID = $insert_id;
@@ -102,6 +102,10 @@ $h["shipCountry"] = $check_delivery_country->fields['countries_iso_code_2'];	// 
 $h["txnID"] = $oID;							// Transaction ID
 //$h["sessionID"] = "";							// Session ID
 
+$h["accept_language"] = "";
+$h["user_agent"] = "";
+$h["clientAPI"] = "k3live";						// Client API
+
 // If you want to disable Secure HTTPS or don't have Curl and OpenSSL installed
 // uncomment the next line
 // $ccfs->isSecure = 0;
@@ -115,7 +119,7 @@ $ccfs->timeout = 5;
 // how many seconds to cache the ip addresses
 // $ccfs->wsIpaddrRefreshTimeout = 3600*5;
 
-// file to store the ip address for www.maxmind.com and www2.maxmind.com
+// file to store the ip address for minfraud1.maxmind.com and minfraud2.maxmind.com
 // $ccfs->wsIpaddrCacheFile = "/tmp/maxmind.ws.cache";
 
 // if useDNS is 1 then use DNS, otherwise use ip addresses directly
@@ -150,8 +154,8 @@ $sql_data_array = array( 'order_id' => $insert_id,
                          'trans_proxy' => $h['isTransProxy'],
                          'free_mail' => $h['freeMail'],
                          'carder_email' => $h['carderEmail'],
-			 'high_risk_username' => $h['highRiskUsername'],
-			 'high_risk_password' => $h['highRiskPassword'],
+                         'high_risk_username' => $h['highRiskUsername'],
+                         'high_risk_password' => $h['highRiskPassword'],
                          'bin_match' => $h['binMatch'],
                          'bin_country' => $h['binCountry'],
                          'bin_name_match' => $h['binNameMatch'],
@@ -163,8 +167,8 @@ $sql_data_array = array( 'order_id' => $insert_id,
                          'city_postal_match' => $h['cityPostalMatch'],
                          'ship_city_postal_match' => $h['shipCityPostalMatch'],
                          'score' => $h['score'],
-			 'risk_score' => $h['riskScore'],
-			 'explanation' => $h['explanation'],
+                         'risk_score' => $h['riskScore'],
+                         'explanation' => $h['explanation'],
                          'queries_remaining' => $h['queriesRemaining'],
                          'maxmind_id' => $h['maxmindID'],
                          'err' => $h['err']);

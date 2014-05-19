@@ -5,13 +5,14 @@
 // +----------------------------------------------------------------------+
 // | This source file is subject to version 2.0 of the GPL license.       |
 // +----------------------------------------------------------------------+
-//  $Id: maxmind_orders.php 1.2 2007-01-05 23:07:39Z ses707 $
+//  $Id: maxmind_orders.php 1.3 2007-01-05 23:07:39Z ses707 $
 //
 
 define('HEADING_TITLE', 'MaxMind Orders');
 define('HEADING_TITLE_SEARCH', 'Order ID:');
 define('HEADING_TITLE_STATUS', 'Status:');
-
+define('HEADING_TITLE_SEARCH_DETAIL_ORDERS_PRODUCTS', 'Search by Product Name or <strong>ID:XX</strong> or Model ');
+define('TEXT_INFO_SEARCH_DETAIL_FILTER_ORDERS_PRODUCTS', 'Search Filter: ');
 define('TABLE_HEADING_PAYMENT_METHOD', 'Payment<br />Shipping');
 define('TABLE_HEADING_ORDERS_ID','ID');
 
@@ -108,13 +109,22 @@ define('SUCCESS_ORDER_UPDATED_DOWNLOAD_OFF', 'Download was successfully disabled
 define('TEXT_MORE', '... more');
 
 define('TEXT_INFO_IP_ADDRESS', 'IP Address: ');
-define('TEXT_INFO_START_IP_ADDRESS', 'Start IP Address: ');
-define('TEXT_INFO_END_IP_ADDRESS', 'End IP Address: ');
 define('TEXT_DELETE_CVV_FROM_DATABASE','Delete CVV from database');
 define('TEXT_DELETE_CVV_REPLACEMENT','Deleted');
 define('TEXT_MASK_CC_NUMBER','Mask this number');
 
+define('TEXT_INFO_EXPIRED_DATE', 'Expired Date:<br />');
+define('TEXT_INFO_EXPIRED_COUNT', 'Expired Count:<br />');
+
+define('TABLE_HEADING_CUSTOMER_COMMENTS', 'Customer<br />Comments');
+define('TEXT_COMMENTS_YES', 'Customer Comments - YES');
+define('TEXT_COMMENTS_NO', 'Customer Comments - NO');
+
 //MaxMind
+//IP Address Changes
+define('TEXT_INFO_START_IP_ADDRESS', 'Start IP Address: ');
+define('TEXT_INFO_END_IP_ADDRESS', 'End IP Address: ');
+
 //Geographical IP address location checking
 define('MAXMIND_COUNTRY', 'Match:');
 define('MAXMIND_CODE', 'Country Code');
